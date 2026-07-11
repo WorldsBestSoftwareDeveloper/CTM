@@ -2,10 +2,11 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { audioManager } from './game/AudioManager'
 import { loadGameSettings } from './settings'
 import { assetManager, type AssetLoadProgress } from './game/AssetManager'
+import { useWalletFoundation } from './wallet/WalletContext'
 
 const GameScreen = lazy(() => import('./game/GameScreen'))
 
-type Screen = 'splash' | 'loading' | 'home' | 'run'
+type Screen = 'splash' | 'loading' | 'home' | 'profile' | 'run'
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
@@ -85,7 +86,8 @@ function LoadingScreen({ progress, status }: { progress: number; status?: string
   )
 }
 
-function HomeScreen({ onPlayDemo, onRanked, onInstall, canInstall }: { onPlayDemo: () => void; onRanked: () => void; onInstall: () => void; canInstall: boolean }) {
+function HomeScreen({ onPlayDemo, onRanked, onProfile, onInstall, canInstall }: { onPlayDemo: () => void; onRanked: () => void; onProfile: () => void; onInstall: () => void; canInstall: boolean }) {
+  const wallet = useWalletFoundation()
   return (
     <main className="home-screen screen-fade">
       <div className="home-ruins" aria-hidden="true">
@@ -119,18 +121,64 @@ function HomeScreen({ onPlayDemo, onRanked, onInstall, canInstall }: { onPlayDem
               Install App
             </button>
           )}
-          <button className="secondary-button" type="button" onClick={onRanked}>
-            Connect Wallet
-          </button>
+          {!wallet.connected ? (
+            <button className="secondary-button" type="button" onClick={wallet.openWalletSelector} disabled={wallet.connecting}>
+              {wallet.connecting ? 'Connecting...' : 'Connect Wallet'}
+            </button>
+          ) : (
+            <>
+              <button className="secondary-button" type="button" onClick={onRanked} aria-disabled="true">Play Ranked</button>
+              <button className="secondary-button" type="button" onClick={onProfile}>Profile</button>
+              <button className="text-button" type="button" onClick={() => void wallet.disconnect()} disabled={wallet.disconnecting}>
+                {wallet.disconnecting ? 'Disconnecting...' : 'Disconnect'}
+              </button>
+            </>
+          )}
         </div>
-        <p className="mode-note"><span className="pulse-dot" /> Demo runs work offline and never submit a score.</p>
+        <p className="mode-note"><span className="pulse-dot" /> {wallet.connected ? `${shortAddress(wallet.address)} • Devnet wallet connected` : 'Demo runs work offline and never submit a score.'}</p>
       </section>
       <footer>Portrait-first • Offline demo available</footer>
     </main>
   )
 }
 
+function ProfileScreen({ onHome }: { onHome: () => void }) {
+  const wallet = useWalletFoundation()
+  return (
+    <main className="home-screen profile-screen screen-fade">
+      <BrandAtmosphere />
+      <section className="profile-card" aria-labelledby="profile-title">
+        <LogoImage src={logoIcon} className="brand-icon" alt="" />
+        <p className="eyebrow">Player profile</p>
+        <h1 id="profile-title">Ranked identity</h1>
+        <dl className="profile-details">
+          <div><dt>Wallet</dt><dd>{shortAddress(wallet.address)}</dd></div>
+          <div><dt>Status</dt><dd>{wallet.connected ? `Connected${wallet.walletName ? ` • ${wallet.walletName}` : ''}` : 'Disconnected'}</dd></div>
+          <div><dt>Network</dt><dd>{networkLabel(wallet.networkStatus)}</dd></div>
+          <div><dt>Ranked</dt><dd>{wallet.connected && wallet.networkStatus === 'devnet' ? 'Wallet ready • session key required' : 'Unavailable'}</dd></div>
+          <div><dt>Demo</dt><dd>Available offline</dd></div>
+        </dl>
+        {wallet.networkStatus === 'wrong-network' && <button className="secondary-button" type="button" onClick={wallet.switchToDevnet}>Switch to Devnet</button>}
+        {wallet.networkStatus === 'offline' && <p className="wallet-warning">Devnet could not be reached. Demo Mode remains available.</p>}
+        <button className="primary-button" type="button" onClick={onHome}>Back Home</button>
+      </section>
+    </main>
+  )
+}
+
+function shortAddress(address: string | null): string {
+  return address ? `${address.slice(0, 4)}…${address.slice(-4)}` : 'Not connected'
+}
+
+function networkLabel(status: ReturnType<typeof useWalletFoundation>['networkStatus']): string {
+  if (status === 'devnet') return 'Devnet'
+  if (status === 'wrong-network') return 'Wrong network'
+  if (status === 'offline') return 'Devnet unavailable'
+  return 'Checking Devnet…'
+}
+
 export default function App() {
+  const wallet = useWalletFoundation()
   const [screen, setScreen] = useState<Screen>('splash')
   const [progress, setProgress] = useState(0)
   const [loadingStatus, setLoadingStatus] = useState<string | undefined>()
@@ -219,7 +267,15 @@ export default function App() {
   }
 
   const explainRanked = () => {
-    setMessage('Ranked Mode connects in a later milestone. Demo Mode is ready now, even offline.')
+    if (!wallet.connected) {
+      setMessage('Connect a wallet before entering Ranked Mode.')
+      return
+    }
+    if (wallet.networkStatus !== 'devnet') {
+      setMessage(wallet.networkStatus === 'wrong-network' ? 'Ranked Mode requires Devnet. Confirm the switch from your Profile.' : 'Devnet is unavailable. Check your connection and try again.')
+      return
+    }
+    setMessage('Your wallet is ready. Ranked Mode remains locked until a session key is created in Milestone 6B.')
   }
 
   return (
@@ -236,10 +292,11 @@ export default function App() {
       {screen === 'loading' && <LoadingScreen progress={progress} status={loadingStatus} />}
       {screen === 'home' && (
         <>
-          <HomeScreen onPlayDemo={startDemo} onRanked={explainRanked} onInstall={installApp} canInstall={Boolean(installPrompt && !isInstalled)} />
-          {message && <div role="status" className="toast">{message}</div>}
+          <HomeScreen onPlayDemo={startDemo} onRanked={explainRanked} onProfile={() => setScreen('profile')} onInstall={installApp} canInstall={Boolean(installPrompt && !isInstalled)} />
+          {(message || wallet.error) && <div role="status" className="toast" onClick={wallet.clearError}>{message ?? wallet.error}</div>}
         </>
       )}
+      {screen === 'profile' && <ProfileScreen onHome={() => setScreen('home')} />}
       {screen === 'run' && <Suspense fallback={<LoadingScreen progress={100} status="Preparing Magic..." />}><GameScreen onHome={() => setScreen('home')} /></Suspense>}
     </div>
   )

@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.6.0-a — Milestone 6A: Wallet Foundation
+
+### Implemented
+
+- Added isolated React wallet providers using Solana Wallet Adapter, Wallet Standard discovery, and the adapter's automatic Mobile Wallet Adapter path for supported Android Chrome/PWA environments.
+- Configured Devnet-only RPC access, automatic reconnect, disconnect recovery, wallet/public-key change propagation, online/offline detection, and genesis-hash validation of custom RPC endpoints.
+- Kept the existing Home design while adding connected states for Play Ranked, Profile, and Disconnect; Play Demo remains independent of wallet and network state.
+- Added a lightweight local Profile view showing shortened address, wallet status/provider, Devnet status, Ranked readiness, and Demo availability without blockchain reads.
+- Added friendly rejection, unavailable/locked wallet, timeout, disconnect, wrong-network, and unreachable-Devnet messages without allowing wallet failures to crash or block Demo Mode.
+- Kept Play Ranked gated behind wallet connection, verified Devnet, and the explicitly future session key.
+
+### Architectural decisions
+
+- Wallet state is owned by React context under `src/wallet`; no wallet or Solana code enters `GameScene`.
+- Phantom, Solflare, and Backpack use Wallet Standard discovery instead of individually bundled legacy adapters. This keeps wallet additions extensible and avoids the full all-wallet adapter bundle.
+- Solana wallets do not expose a universal selected-network switch API. The app therefore validates its configured RPC by Devnet genesis hash and changes to the public Devnet RPC only after explicit user confirmation.
+- `VITE_SOLANA_RPC_URL` is optional. When absent, the official public Devnet endpoint is used.
+
+### Excluded
+
+- No Anchor program, MagicBlock integration, session-key creation, on-chain profile/run, transaction signing, score submission, or leaderboard work was started.
+
+### Validation
+
+- `npm.cmd run lint` passes.
+- `npm.cmd run typecheck` passes.
+- `npm.cmd run build` passes.
+- Physical wallet extension and Android MWA testing remain manual prerequisites before Milestone 6B.
+
 ## Production stabilization
 
 - Added a centralized required-asset preload gate with real progress, glTF buffer/texture dependency discovery, one retry, explicit warnings, and hard failure instead of silently starting a partial run.

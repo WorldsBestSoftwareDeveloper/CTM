@@ -56,6 +56,11 @@ Complexity: XS (under 1 hour), S (1–3 hours), M (half day), L (up to a day). A
 - [x] **Repository hygiene** — added `.gitignore` for dependencies, build output, caches, logs, env files, and editor/OS files so source and public game assets remain push-ready.
 - [ ] Full installed-device offline smoke testing remains part of later Demo-Ready QA because this workspace is not currently a Git repo and browser/device install verification is external to the production build step.
 
+## Milestone 6A completion
+
+- [x] **T19 (wallet-foundation scope)** — Devnet-only Solana Wallet Adapter providers, Wallet Standard desktop discovery, automatic Mobile Wallet Adapter support on compatible Android Chrome/PWA environments, reconnect/disconnect state, RPC network validation, wallet error recovery, Profile presentation, and future-session-key Ranked gating completed.
+- [ ] MagicBlock, session keys, Anchor programs, on-chain profiles/runs, transactions, score submission, and leaderboards remain excluded until their approved milestones.
+
 | ID | Description | Dependencies | Complexity | Acceptance criteria |
 |---|---|---|---|---|
 | T01 | Create Vite React/TypeScript app with Tailwind, Framer Motion, strict lint/type settings, and PWA baseline | None | S | Production build succeeds and app installs with valid icons/manifest. |
@@ -76,7 +81,7 @@ Complexity: XS (under 1 hour), S (1–3 hours), M (half day), L (up to a day). A
 | T16 | Add audio, pooled VFX, animation blending, camera feedback, and dynamic music layers | T03,T11,T12 | M | Effects are responsive, pooled, and obey audio/reduced-effects settings. |
 | T17 | Implement visual accessibility pass: silhouettes, contrast, reduced effects, orientation QA | T13,T16 | S | Hazards remain identifiable with muted audio and reduced effects. |
 | T18 | Configure PWA precache/runtime cache and offline Demo smoke test | T14 | S | Installed app launches cached Demo Mode without network; Ranked is disabled offline. |
-| T19 | Add Solana Wallet Adapter desktop connection and Mobile Wallet Adapter capability path | T01,T04 | M | Supported desktop/mobile wallet connect/disconnect/rejection states work; Demo remains independent. |
+| T19 | Add Solana Wallet Adapter desktop connection and Mobile Wallet Adapter capability path | T01,T04 | M | **Complete in Milestone 6A.** Supported desktop/mobile wallet connect/disconnect/rejection states are isolated from Demo; final wallet/device smoke testing requires the manual prerequisites listed in the handoff. |
 | T20 | Create Anchor program state and PlayerProfile/RunSession/GlobalLeaderboard instructions | T19 | L | Program tests cover profile init, session state, score ordering, and authorization. |
 | T21 | Integrate MagicBlock Magic Router, session keys, delegation, checkpoints, commit, leaderboard update, and undelegation | T20 | L | A Devnet ranked run completes the specified lifecycle with visible errors/retry. |
 | T22 | Bind profile/global leaderboard reads to UI and prevent Demo submissions | T13,T21 | M | Ranked updates display after confirmation; Demo creates no transaction. |
