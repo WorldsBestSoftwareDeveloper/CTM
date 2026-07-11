@@ -24,6 +24,7 @@ import type { RunnerAudioSnapshot } from './AudioManager'
 import type { GameSettings } from '../settings'
 import { AncientRuinsEnvironment } from './environment/AncientRuinsEnvironment'
 import { runnerEnvironmentModules, type RunnerEnvironmentModuleId } from './environment/EnvironmentCatalog'
+import { assetManager } from './AssetManager'
 
 export type RunnerState = 'running' | 'jumping' | 'sliding' | 'dead' | 'paused'
 type Entity = number
@@ -484,6 +485,7 @@ export class GameScene {
   private impactShake = 0
   private settings: GameSettings
   private disposed = false
+  private readonly readyPromise: Promise<void>
 
   constructor(canvas: HTMLCanvasElement, private readonly options: GameSceneOptions) {
     this.settings = options.settings
@@ -492,11 +494,12 @@ export class GameScene {
     this.world = this.createWorld()
     this.camera = this.createCamera()
     this.configureScene()
+    if (!assetManager.isReady()) throw new Error('GameScene created before required assets were preloaded')
     this.playerEntity = this.createPlayer()
     this.demonEntity = this.createDemon()
     this.createGameplayWorld()
     this.environment = new AncientRuinsEnvironment(this.scene)
-    void this.environment.initialize()
+    this.readyPromise = this.initializeAssets()
     this.createVfxPool()
     this.input = new InputController(canvas, () => 32 / this.settings.swipeSensitivity)
     window.addEventListener('resize', this.resize)
@@ -504,6 +507,18 @@ export class GameScene {
 
   start(): void {
     this.engine.runRenderLoop(this.renderFrame)
+  }
+
+  ready(): Promise<void> {
+    return this.readyPromise
+  }
+
+  private async initializeAssets(): Promise<void> {
+    await Promise.all([
+      this.loadHero(this.world.renderables.get(this.playerEntity)!.visualRoot!),
+      this.loadDemon(this.world.renderables.get(this.demonEntity)!.visualRoot!),
+      this.environment.initialize(),
+    ])
   }
 
   pause(): void {
@@ -1177,9 +1192,7 @@ export class GameScene {
     const visualRoot = new TransformNode('hero-visual-root', this.scene)
     visualRoot.parent = root
     visualRoot.scaling.setAll(heroVisualScale)
-    this.heroPulse = this.createHeroPulse(visualRoot)
     this.world.renderables.set(entity, { root, visualRoot })
-    void this.loadHero(visualRoot)
     return entity
   }
 
@@ -1207,9 +1220,11 @@ export class GameScene {
         if (!node.parent) node.parent = visualRoot
       }
       this.heroAnimation = new AnimationController(result.animationGroups)
+      this.heroPulse = this.createHeroPulse(visualRoot)
       this.heroAnimation.sync(this.runner().state)
-    } catch {
-      // The game remains mechanically playable if the visual asset cannot be fetched.
+    } catch (error) {
+      console.warn('[GameScene] Hero model failed to instantiate after preload.', error)
+      throw error
     }
   }
 
@@ -1221,14 +1236,12 @@ export class GameScene {
     visualRoot.parent = root
     visualRoot.position.y = -0.08
     visualRoot.scaling.setAll(0.62)
-    this.createDemonFallback(visualRoot)
     this.demonAuraLight = new PointLight('demon-aura-glow', new Vector3(0, 1.15, -0.55), this.scene)
     this.demonAuraLight.parent = root
     this.demonAuraLight.diffuse = new Color3(0.75, 0.05, 0.95)
     this.demonAuraLight.range = 7
     this.demonAuraLight.intensity = 0
     this.world.renderables.set(entity, { root, visualRoot })
-    void this.loadDemon(visualRoot)
     return entity
   }
 
@@ -1239,36 +1252,15 @@ export class GameScene {
         for (const mesh of result.meshes) mesh.dispose()
         return
       }
-      visualRoot.getChildMeshes(false).forEach((mesh) => mesh.dispose())
       for (const node of [...result.transformNodes, ...result.meshes]) {
         if (!node.parent) node.parent = visualRoot
       }
       this.demonAnimation = new DemonAnimationController(result.animationGroups)
       this.demonAnimation.chase()
-    } catch {
-      // A visible fallback remains so chase gameplay never becomes invisible.
+    } catch (error) {
+      console.warn('[GameScene] Demon model failed to instantiate after preload.', error)
+      throw error
     }
-  }
-
-  private createDemonFallback(parent: TransformNode): void {
-    const bodyMaterial = new StandardMaterial('demon-fallback-material', this.scene)
-    bodyMaterial.diffuseColor = new Color3(0.08, 0.005, 0.11)
-    bodyMaterial.emissiveColor = new Color3(0.22, 0.02, 0.35)
-    const eyeMaterial = new StandardMaterial('demon-eye-material', this.scene)
-    eyeMaterial.diffuseColor = new Color3(1, 0.16, 0.56)
-    eyeMaterial.emissiveColor = new Color3(1, 0.08, 0.62)
-    const body = CreateSphere('demon-fallback-body', { diameter: 1.6, segments: 8 }, this.scene)
-    body.parent = parent
-    body.position.y = 1.05
-    body.material = bodyMaterial
-    const leftEye = CreateSphere('demon-fallback-eye-left', { diameter: 0.24, segments: 6 }, this.scene)
-    leftEye.parent = parent
-    leftEye.position.set(-0.28, 1.35, -0.72)
-    leftEye.material = eyeMaterial
-    const rightEye = CreateSphere('demon-fallback-eye-right', { diameter: 0.24, segments: 6 }, this.scene)
-    rightEye.parent = parent
-    rightEye.position.set(0.28, 1.35, -0.72)
-    rightEye.material = eyeMaterial
   }
 
   private resetDemon(): void {

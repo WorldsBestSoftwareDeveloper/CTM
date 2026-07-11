@@ -87,12 +87,11 @@ export class AncientRuinsEnvironment {
 
   async initialize(): Promise<void> {
     const entries = Object.entries(runnerEnvironmentModules) as Array<[RunnerEnvironmentModuleId, EnvironmentModule]>
-    const results = await Promise.allSettled(entries.map(async ([id, asset]) => [id, await SceneLoader.LoadAssetContainerAsync('', asset.file, this.scene)] as const))
+    const results = await Promise.all(entries.map(async ([id, asset]) => [id, await SceneLoader.LoadAssetContainerAsync('', asset.file, this.scene)] as const))
     if (this.disposed) return
     for (const result of results) {
-      if (result.status === 'fulfilled') this.templates.set(result.value[0], result.value[1])
+      this.templates.set(result[0], result[1])
     }
-    if (this.templates.size === 0) return
     this.buildPool()
     this.initialized = true
   }

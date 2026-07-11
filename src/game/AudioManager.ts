@@ -32,16 +32,43 @@ class AudioManager {
   private lastCriticalRoarAt = -roarCooldownMs
   private lastFootstepPhase = -1
   private fallbackFootstepAt = 0
-  private preloaded = false
+  private preloadPromise: Promise<void> | null = null
+  private unlocked = false
+  private wantsMusic = false
   private settings: GameSettings = defaultGameSettings
 
-  preload(): void {
-    if (this.preloaded) return
-    this.preloaded = true
-    for (const audio of this.allAudio()) {
+  constructor() {
+    window.addEventListener('pointerdown', this.unlock, { passive: true })
+    window.addEventListener('keydown', this.unlock)
+    window.addEventListener('touchend', this.unlock, { passive: true })
+    window.addEventListener('pageshow', this.resumeAfterInterruption)
+    window.addEventListener('focus', this.resumeAfterInterruption)
+    document.addEventListener('visibilitychange', this.resumeAfterInterruption)
+  }
+
+  preload(): Promise<void> {
+    if (this.preloadPromise) return this.preloadPromise
+    this.preloadPromise = Promise.all(this.allAudio().map((audio) => new Promise<void>((resolve, reject) => {
+      if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+        resolve()
+        return
+      }
+      const loaded = () => { cleanup(); resolve() }
+      const failed = () => { cleanup(); reject(new Error(`Audio failed to preload: ${audio.src}`)) }
+      const cleanup = () => {
+        audio.removeEventListener('canplaythrough', loaded)
+        audio.removeEventListener('error', failed)
+      }
+      audio.addEventListener('canplaythrough', loaded, { once: true })
+      audio.addEventListener('error', failed, { once: true })
       audio.preload = 'auto'
       audio.load()
-    }
+    }))).then(() => undefined).catch((error) => {
+      this.preloadPromise = null
+      console.warn('[AudioManager] Required audio preload failed.', error)
+      throw error
+    })
+    return this.preloadPromise
   }
 
   applySettings(settings: GameSettings): void {
@@ -58,13 +85,15 @@ class AudioManager {
   }
 
   playHomeAmbient(): void {
-    this.preload()
+    void this.preload()
+    this.wantsMusic = true
     this.fadeTo('ambient')
     this.stopFootsteps()
   }
 
   startGameplay(): void {
-    this.preload()
+    void this.preload()
+    this.wantsMusic = true
     this.hasRoaredThisRun = false
     this.lastCriticalRoarAt = -roarCooldownMs
     this.lastFootstepPhase = -1
@@ -76,6 +105,26 @@ class AudioManager {
   endGameplay(): void {
     this.fadeTo('ambient')
     this.stopFootsteps()
+  }
+
+  private readonly unlock = (): void => {
+    if (this.unlocked) return
+    this.unlocked = true
+    for (const audio of this.allAudio()) {
+      audio.muted = true
+      void audio.play().then(() => {
+        audio.pause()
+        audio.currentTime = 0
+        audio.muted = false
+        if (this.wantsMusic) this.fadeTo(this.activeMusic)
+      }).catch(() => { audio.muted = false })
+    }
+  }
+
+  private readonly resumeAfterInterruption = (): void => {
+    if (document.visibilityState === 'hidden' || !this.unlocked || !this.wantsMusic) return
+    this.fadeTarget = null
+    this.fadeTo(this.activeMusic)
   }
 
   updateGameplay(snapshot: RunnerAudioSnapshot): void {
@@ -205,10 +254,11 @@ class AudioManager {
   }
 
   private async tryPlay(audio: HTMLAudioElement): Promise<void> {
+    if (!this.unlocked) return
     try {
       await audio.play()
-    } catch {
-      // Browsers can block playback until the first user gesture; later calls retry.
+    } catch (error) {
+      console.warn(`[AudioManager] Playback could not resume: ${audio.src}`, error)
     }
   }
 

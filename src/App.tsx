@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { audioManager } from './game/AudioManager'
 import { loadGameSettings } from './settings'
+import { assetManager, type AssetLoadProgress } from './game/AssetManager'
 
 const GameScreen = lazy(() => import('./game/GameScreen'))
 
@@ -54,14 +55,14 @@ function LogoImage({ src, className, alt }: { src: string; className: string; al
   return <img src={src} className={className} alt={alt} draggable={false} decoding="async" />
 }
 
-function LoadingScreen({ progress }: { progress: number }) {
+function LoadingScreen({ progress, status }: { progress: number; status?: string }) {
   const firstTip = useMemo(() => Math.floor(Math.random() * loadingTips.length), [])
   const [tipIndex, setTipIndex] = useState(firstTip)
   useEffect(() => {
     const timer = window.setInterval(() => setTipIndex((current) => (current + 1 + Math.floor(Math.random() * (loadingTips.length - 1))) % loadingTips.length), 2300)
     return () => window.clearInterval(timer)
   }, [])
-  const status = loadingStatuses[Math.min(loadingStatuses.length - 1, Math.floor((progress / 101) * loadingStatuses.length))]
+  const visibleStatus = status ?? loadingStatuses[Math.min(loadingStatuses.length - 1, Math.floor((progress / 101) * loadingStatuses.length))]
   return (
     <main className="launch-screen loading-screen screen-fade" aria-live="polite">
       <BrandAtmosphere />
@@ -73,7 +74,7 @@ function LoadingScreen({ progress }: { progress: number }) {
           <div className="rune-circle" />
           <span className="rune-core" />
         </div>
-        <p className="loading-status">{status}</p>
+        <p className="loading-status">{visibleStatus}</p>
         <div className="loading-track premium-loading-track" aria-label={`Loading ${progress}%`}>
           <div className="loading-fill premium-loading-fill" style={{ width: `${progress}%` }} />
         </div>
@@ -132,6 +133,8 @@ function HomeScreen({ onPlayDemo, onRanked, onInstall, canInstall }: { onPlayDem
 export default function App() {
   const [screen, setScreen] = useState<Screen>('splash')
   const [progress, setProgress] = useState(0)
+  const [loadingStatus, setLoadingStatus] = useState<string | undefined>()
+  const [assetLoading, setAssetLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches)
@@ -139,7 +142,7 @@ export default function App() {
 
   useEffect(() => {
     audioManager.applySettings(settings)
-    audioManager.preload()
+    void audioManager.preload().catch((error) => console.warn('[AudioManager] Startup preload failed.', error))
     void preloadBrandAssets()
     const splashTimer = window.setTimeout(() => setScreen('loading'), launchDurationMs)
     return () => window.clearTimeout(splashTimer)
@@ -167,7 +170,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (screen !== 'loading') return
+    if (screen !== 'loading' || assetLoading) return
     const startedAt = Date.now()
     let brandReady = false
     void preloadBrandAssets().then(() => {
@@ -184,11 +187,28 @@ export default function App() {
       }
     }, 40)
     return () => window.clearInterval(tick)
-  }, [screen])
+  }, [assetLoading, screen])
 
-  const startDemo = () => {
+  const startDemo = async () => {
     setMessage(null)
-    setScreen('run')
+    setAssetLoading(true)
+    setProgress(0)
+    setLoadingStatus('Loading Assets...')
+    setScreen('loading')
+    try {
+      await assetManager.preload(({ progress: nextProgress, status }: AssetLoadProgress) => {
+        setProgress(nextProgress)
+        setLoadingStatus(status)
+      })
+      await audioManager.preload()
+      setProgress(100)
+      window.setTimeout(() => setScreen('run'), 180)
+    } catch (error) {
+      console.warn('[App] Required gameplay assets did not load.', error)
+      setMessage('Assets could not be loaded. Check your connection and try again.')
+      setAssetLoading(false)
+      setScreen('home')
+    }
   }
 
   const installApp = async () => {
@@ -213,14 +233,14 @@ export default function App() {
           <p className="eyebrow">Ancient Arcane Ruins</p>
         </main>
       )}
-      {screen === 'loading' && <LoadingScreen progress={progress} />}
+      {screen === 'loading' && <LoadingScreen progress={progress} status={loadingStatus} />}
       {screen === 'home' && (
         <>
           <HomeScreen onPlayDemo={startDemo} onRanked={explainRanked} onInstall={installApp} canInstall={Boolean(installPrompt && !isInstalled)} />
           {message && <div role="status" className="toast">{message}</div>}
         </>
       )}
-      {screen === 'run' && <Suspense fallback={<LoadingScreen progress={100} />}><GameScreen onHome={() => setScreen('home')} /></Suspense>}
+      {screen === 'run' && <Suspense fallback={<LoadingScreen progress={100} status="Preparing Magic..." />}><GameScreen onHome={() => setScreen('home')} /></Suspense>}
     </div>
   )
 }

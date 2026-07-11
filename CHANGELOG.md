@@ -1,5 +1,14 @@
 # Changelog
 
+## Production stabilization
+
+- Added a centralized required-asset preload gate with real progress, glTF buffer/texture dependency discovery, one retry, explicit warnings, and hard failure instead of silently starting a partial run.
+- Gameplay now waits for the hero, demon, environment modules, materials, textures, and audio before Babylon starts its render and simulation loop.
+- Removed hero and demon placeholder spawn paths; the gameplay canvas remains covered until imported meshes are ready.
+- Hardened audio preload, first-interaction unlock, and resume behavior for desktop, mobile, visibility changes, and installed-app suspend/resume.
+- Reused browser and Babylon caches so required assets are not repeatedly downloaded or reconstructed during a run.
+- No gameplay rules, milestone progression, PWA configuration, blockchain scope, or assets were changed.
+
 ## 0.5.0 — Milestone 5: Installable PWA, Loading Experience & Production Polish
 
 ### Implemented

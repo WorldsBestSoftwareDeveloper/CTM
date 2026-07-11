@@ -21,6 +21,7 @@ export default function GameScreen({ onHome }: GameScreenProps) {
   const [hud, setHud] = useState<HudSnapshot>(emptyHud)
   const [hudPulse, setHudPulse] = useState({ score: false, magic: false, level: false })
   const [debug, setDebug] = useState<DebugSnapshot | null>(null)
+  const [sceneReady, setSceneReady] = useState(false)
 
   const handleDeath = useCallback(() => {
     audioManager.endGameplay()
@@ -59,7 +60,6 @@ export default function GameScreen({ onHome }: GameScreenProps) {
     const canvas = canvasRef.current
     if (!canvas) return
     audioManager.applySettings(settingsRef.current)
-    audioManager.startGameplay()
     const game = new GameScene(canvas, {
       debug: import.meta.env.DEV,
       onDeath: handleDeath,
@@ -69,7 +69,15 @@ export default function GameScreen({ onHome }: GameScreenProps) {
       settings: settingsRef.current,
     })
     gameRef.current = game
-    game.start()
+    void game.ready().then(() => {
+      if (gameRef.current !== game) return
+      audioManager.startGameplay()
+      game.start()
+      setSceneReady(true)
+    }).catch((error) => {
+      console.warn('[GameScreen] Babylon assets failed to instantiate.', error)
+      onHome()
+    })
     return () => {
       audioManager.endGameplay()
       game.dispose()
@@ -77,7 +85,7 @@ export default function GameScreen({ onHome }: GameScreenProps) {
       pulseTimers.current.forEach((timer) => window.clearTimeout(timer))
       pulseTimers.current = []
     }
-  }, [handleAudio, handleDeath, handleDebug, handleHud])
+  }, [handleAudio, handleDeath, handleDebug, handleHud, onHome])
 
   const pause = () => {
     gameRef.current?.pause()
@@ -111,8 +119,9 @@ export default function GameScreen({ onHome }: GameScreenProps) {
   }
 
   return (
-    <main className="game-screen" aria-label="Core runner demo" style={{ '--demon-proximity': hud.demonProximity } as CSSProperties}>
+    <main className={`game-screen${sceneReady ? ' scene-ready' : ' scene-loading'}`} aria-label="Core runner demo" style={{ '--demon-proximity': hud.demonProximity } as CSSProperties}>
       <canvas ref={canvasRef} className="game-canvas" aria-label="Arcane runner game scene" />
+      {!sceneReady && <div className="scene-loading-gate" role="status"><span className="loading-mini-rune" /><b>Preparing Magic...</b><small>100%</small></div>}
       <div className="tension-vignette" aria-hidden="true" />
       <header className="runner-hud">
         <div><span className="hud-label">DEMO RUN</span><strong>{hud.distance}m</strong></div>
