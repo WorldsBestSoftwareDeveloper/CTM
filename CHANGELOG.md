@@ -8,6 +8,7 @@
 - Polished the existing Home layout without changing navigation: added layered parallax ambience, distant ruin silhouettes, fog, floating crystals, rune glow, logo entrance/breathing treatment, and richer button hover feedback.
 - Added a browser install prompt path that appears only when the PWA install event is available and the app is not already installed.
 - Improved PWA configuration with official logo assets included, an icon manifest entry, automatic service-worker updates, old-cache cleanup, and runtime cache rules for audio/game assets so large gameplay files are cached on demand instead of bloating the startup precache.
+- Updated the PWA dependency set to `vite-plugin-pwa@0.17.5` with Workbox 7 peers so Vercel's default strict `npm install` can resolve the Vite 4 project without `--legacy-peer-deps`.
 - Added a project `.gitignore` for dependencies, build output, caches, logs, environment files, and OS/editor noise so the source and public game assets can be pushed cleanly.
 
 ### Architectural decisions
