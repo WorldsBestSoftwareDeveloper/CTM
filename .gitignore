@@ -8,6 +8,9 @@ build/
 .vite/
 .turbo/
 coverage/
+target/
+.anchor/
+test-ledger/
 
 # Environment files
 .env

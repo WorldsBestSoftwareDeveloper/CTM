@@ -1,0 +1,19 @@
+[toolchain]
+anchor_version = "0.32.1"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+catch_the_magician = "74bg3UqJQTXJQihCw1JX7F3NWh9PUhj4UFqjE81rCpnR"
+
+[programs.devnet]
+catch_the_magician = "74bg3UqJQTXJQihCw1JX7F3NWh9PUhj4UFqjE81rCpnR"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test --workspace"

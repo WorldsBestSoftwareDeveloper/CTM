@@ -119,6 +119,13 @@ button:focus-visible { outline: 3px solid #f0b0ff; outline-offset: 3px; }
 .wallet-warning { margin: .8rem 0; color: #f3c5ff; font-size: .82rem; line-height: 1.5; }
 .wallet-adapter-modal-wrapper { background: #1b0b25 !important; border: 1px solid #d78bff44; border-radius: 1.25rem !important; }
 .wallet-adapter-modal-title { color: #fff1ff !important; }
+.transaction-progress { position: fixed; right: 1rem; bottom: 1rem; z-index: 1000; display: flex; align-items: center; gap: .8rem; width: min(calc(100% - 2rem), 24rem); padding: .85rem 1rem; border: 1px solid #d78bff66; border-radius: 1rem; color: #fff3ff; background: #170820f2; box-shadow: 0 18px 55px #000a, 0 0 28px #a535d93b; backdrop-filter: blur(16px); }
+.transaction-progress .loading-mini-rune { width: 2rem; flex: 0 0 auto; }
+.transaction-progress.complete .loading-mini-rune, .transaction-progress.error .loading-mini-rune { animation: none; border-color: #d99cff; }
+.transaction-progress div { display: grid; gap: .15rem; min-width: 0; flex: 1; }
+.transaction-progress small { color: #c99ed7; }
+.transaction-progress strong { font-size: .86rem; overflow-wrap: anywhere; }
+.transaction-progress button { border: 0; color: #f0c8ff; background: transparent; cursor: pointer; }
 .tension-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: calc(var(--demon-proximity, 0) * .42); background: radial-gradient(circle at 50% 46%, transparent 46%, #6c0d865c 80%, #110017a8 100%); animation: heartbeat .9s ease-in-out infinite; animation-play-state: running; }
 .runner-hud { position: absolute; inset: max(1rem, env(safe-area-inset-top)) 1rem auto; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: .65rem; color: #f9efff; pointer-events: none; }
 .runner-hud > div { display: grid; gap: .15rem; text-shadow: 0 2px 16px #000; transition: transform .18s ease, filter .18s ease; }.runner-hud strong { font-family: ui-monospace, monospace; font-size: 1.35rem; }.hud-label { color: #e7a3f4; font-size: .66rem; font-weight: 900; letter-spacing: .15em; }.hud-controls { display: flex !important; flex-wrap: wrap; justify-content: flex-end; gap: .35rem; pointer-events: auto; }.hud-pause { pointer-events: auto; border: 1px solid #e6a1f58a; border-radius: .8rem; padding: .62rem .85rem; color: #f9eaff; background: #1d0a2fbf; font-size: .76rem; font-weight: 800; backdrop-filter: blur(8px); }

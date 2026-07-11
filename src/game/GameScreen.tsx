@@ -4,10 +4,13 @@ import { GameScene, type DebugSnapshot, type HudSnapshot } from './GameScene'
 import { loadGameSettings, saveGameSettings, type GameSettings } from '../settings'
 
 interface GameScreenProps {
+  mode: 'demo' | 'ranked'
   onHome: () => void
+  onRankedEnd: (score: number, distance: number) => Promise<void>
+  onRankedRestart: () => Promise<void>
 }
 
-export default function GameScreen({ onHome }: GameScreenProps) {
+export default function GameScreen({ mode, onHome, onRankedEnd, onRankedRestart }: GameScreenProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const gameRef = useRef<GameScene | null>(null)
   const hudRef = useRef<HudSnapshot | null>(null)
@@ -22,12 +25,18 @@ export default function GameScreen({ onHome }: GameScreenProps) {
   const [hudPulse, setHudPulse] = useState({ score: false, magic: false, level: false })
   const [debug, setDebug] = useState<DebugSnapshot | null>(null)
   const [sceneReady, setSceneReady] = useState(false)
+  const rankedFinishStarted = useRef(false)
 
   const handleDeath = useCallback(() => {
     audioManager.endGameplay()
     setIsPaused(false)
     setIsDead(true)
-  }, [])
+    if (mode === 'ranked' && !rankedFinishStarted.current) {
+      rankedFinishStarted.current = true
+      const result = hudRef.current ?? { distance: 0, score: 0, essence: 0, crystals: 0, relics: 0, demonProximity: 0, level: 1 }
+      void onRankedEnd(result.score, result.distance).catch(() => undefined)
+    }
+  }, [mode, onRankedEnd])
 
   const handleDebug = useCallback((snapshot: DebugSnapshot) => setDebug(snapshot), [])
   const handleAudio = useCallback((snapshot: RunnerAudioSnapshot) => audioManager.updateGameplay(snapshot), [])
@@ -104,7 +113,15 @@ export default function GameScreen({ onHome }: GameScreenProps) {
     setIsPaused(false)
   }
 
-  const restart = () => {
+  const restart = async () => {
+    if (mode === 'ranked') {
+      try {
+        await onRankedRestart()
+      } catch {
+        return
+      }
+    }
+    rankedFinishStarted.current = false
     audioManager.startGameplay()
     gameRef.current?.restart()
     setHud(emptyHud)
@@ -124,7 +141,7 @@ export default function GameScreen({ onHome }: GameScreenProps) {
       {!sceneReady && <div className="scene-loading-gate" role="status"><span className="loading-mini-rune" /><b>Preparing Magic...</b><small>100%</small></div>}
       <div className="tension-vignette" aria-hidden="true" />
       <header className="runner-hud">
-        <div><span className="hud-label">DEMO RUN</span><strong>{hud.distance}m</strong></div>
+        <div><span className="hud-label">{mode === 'ranked' ? 'RANKED RUN' : 'DEMO RUN'}</span><strong>{hud.distance}m</strong></div>
         <div className={hudPulse.score ? 'hud-pop' : undefined}><span className="hud-label">SCORE</span><strong>{hud.score}</strong></div>
         <div className={hudPulse.magic ? 'hud-pop' : undefined}><span className="hud-label">MAGIC</span><strong>{hud.essence}/{hud.crystals}/{hud.relics}</strong></div>
         <div className={hudPulse.level ? 'hud-pop hud-level-up' : undefined}><span className="hud-label">LEVEL</span><strong>{hud.level}</strong></div>
@@ -141,7 +158,7 @@ export default function GameScreen({ onHome }: GameScreenProps) {
       {isPaused && (
         <section className="runner-overlay" role="dialog" aria-modal="true" aria-label="Paused">
           <p className="eyebrow">Run paused</p><h1>Catch your breath</h1>
-          <div className="demo-actions"><button className="primary-button" type="button" onClick={resume}>Resume</button><button className="secondary-button" type="button" onClick={restart}>Restart</button><button className="secondary-button" type="button" onClick={() => setIsSettingsOpen(true)}>Settings</button><button className="text-button" type="button" onClick={onHome}>Return Home</button></div>
+          <div className="demo-actions"><button className="primary-button" type="button" onClick={resume}>Resume</button><button className="secondary-button" type="button" onClick={() => void restart()}>Restart</button><button className="secondary-button" type="button" onClick={() => setIsSettingsOpen(true)}>Settings</button><button className="text-button" type="button" onClick={onHome}>Return Home</button></div>
         </section>
       )}
       {isSettingsOpen && (
@@ -154,7 +171,7 @@ export default function GameScreen({ onHome }: GameScreenProps) {
       {isDead && (
         <section className="runner-overlay" role="dialog" aria-modal="true" aria-label="Game over">
           <p className="eyebrow">Run ended</p><h1>Game Over</h1><p>You reached {hud.distance} metres and scored {hud.score} through the arcane ruins.</p>
-          <div className="demo-actions"><button className="primary-button" type="button" onClick={restart}>Play Again</button><button className="text-button" type="button" onClick={onHome}>Return Home</button></div>
+          <div className="demo-actions"><button className="primary-button" type="button" onClick={() => void restart()}>Play Again</button><button className="text-button" type="button" onClick={onHome}>Return Home</button></div>
         </section>
       )}
     </main>

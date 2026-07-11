@@ -1,0 +1,24 @@
+[package]
+name = "catch_the_magician"
+version = "0.1.0"
+description = "Catch the Magician ranked-run account foundation"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "catch_the_magician"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+
+[dependencies]
+anchor-lang = "0.32.1"
+

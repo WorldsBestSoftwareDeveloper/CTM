@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles.css'
 import { WalletFoundationProvider } from './wallet/WalletFoundation'
+import { RankedProvider } from './blockchain/RankedProvider'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -13,7 +14,9 @@ if ('serviceWorker' in navigator) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WalletFoundationProvider>
-      <App />
+      <RankedProvider>
+        <App />
+      </RankedProvider>
     </WalletFoundationProvider>
   </StrictMode>,
 )

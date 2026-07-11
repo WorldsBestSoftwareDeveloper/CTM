@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.6.0-b2 — Milestone 6B Phase 2: Ranked Anchor Client
+
+### Implemented
+
+- Deployed the existing `catch_the_magician` Anchor program to Devnet and connected the React wallet layer to the generated IDL and TypeScript binding.
+- Added deterministic `PlayerProfile` and `RunSession` PDA derivation, on-demand profile initialization at the first explicit Play Ranked action, and on-chain profile refresh after confirmed transactions.
+- Added Ranked run start/finish transactions. Active run IDs are generated locally, persisted per wallet, recovered after refresh, and cleared only after a confirmed `finish_run`.
+- Added explicit transaction stages: Preparing, Awaiting wallet approval, Sending, Confirming, Complete, plus friendly rejection, timeout, insufficient-funds, and transaction-failure states.
+- Added a single-flight transaction coordinator to prevent duplicate concurrent submissions; timed-out or failed transactions are never retried automatically.
+- Connected Ranked Game Over to `finish_run` and Ranked Play Again to a new `start_run` while preserving all existing gameplay timing and mechanics.
+- Extended the existing Profile presentation with on-chain runs played, best score, and best distance.
+
+### Scope boundaries
+
+- Demo Mode continues to use the same local asset/gameplay path and never creates or submits a transaction.
+- No MagicBlock, session key, Ephemeral Rollup, delegation, checkpoint, leaderboard, anti-cheat, score verification, instruction, gameplay, asset, audio, PWA, or visual-theme work was added.
+
+### Devnet
+
+- Program ID: `74bg3UqJQTXJQihCw1JX7F3NWh9PUhj4UFqjE81rCpnR`.
+- Initial deployment signature: `Yv5qZQosX4LXwJhKB6VRBnEiCBfnun8SGfDxBsTMdWqiUgzAHdjaY1VWMxJZNDYgjzwuMhR6RwyEF7s5JWs6V4b`.
+- Validation upgrade signature from `anchor test`: `3Azj8dNtqu32we422VF85ZZ8v4Sq1qbMNykb5TVePDi8163pX7q2PSrXVjdfLBD1S38avKj3euUmYWEzDpNQATtQ`.
+
+### Validation
+
+- `anchor test` passes on Devnet: 1 passed, 0 failed.
+- Frontend lint, typecheck, and production build results are recorded at handoff.
+
+## 0.6.0-b1 — Milestone 6B Phase 1: Anchor Foundation
+
+### Implemented
+
+- Added an Anchor 0.32.1 workspace inside the existing repository with the `catch_the_magician` program configured for Devnet.
+- Generated program ID `74bg3UqJQTXJQihCw1JX7F3NWh9PUhj4UFqjE81rCpnR` and applied it consistently to `declare_id!`, `Anchor.toml`, the generated IDL, and frontend configuration.
+- Added `PlayerProfile` and `RunSession` PDA accounts with explicit account sizing, stored bumps, wallet authority constraints, and run lifecycle status.
+- Added `initialize_player`, `start_run`, and `finish_run`; finishing a run updates local profile run count, best score, and best distance with overflow protection.
+- Added the Anchor TypeScript client dependency, generated IDL/type bindings, typed program construction, and deterministic PDA helpers for player profiles and run sessions.
+
+### Scope boundaries
+
+- No MagicBlock, session keys, delegation, checkpoints, leaderboards, score verification, transaction UI, or Demo Mode integration was added.
+- Phase 1 accepts wallet-supplied final score and distance without competitive verification; verification remains explicitly out of scope.
+
+### Validation
+
+- `anchor build` generated the SBF program, IDL, and TypeScript type through the verified WSL toolchain.
+- Frontend lint, typecheck, and production build results are recorded at handoff.
+
 ## 0.6.0-a — Milestone 6A: Wallet Foundation
 
 ### Implemented

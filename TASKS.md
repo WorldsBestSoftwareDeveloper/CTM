@@ -61,6 +61,16 @@ Complexity: XS (under 1 hour), S (1–3 hours), M (half day), L (up to a day). A
 - [x] **T19 (wallet-foundation scope)** — Devnet-only Solana Wallet Adapter providers, Wallet Standard desktop discovery, automatic Mobile Wallet Adapter support on compatible Android Chrome/PWA environments, reconnect/disconnect state, RPC network validation, wallet error recovery, Profile presentation, and future-session-key Ranked gating completed.
 - [ ] MagicBlock, session keys, Anchor programs, on-chain profiles/runs, transactions, score submission, and leaderboards remain excluded until their approved milestones.
 
+## Milestone 6B Phase 1 completion
+
+- [x] **T20 (program-foundation scope)** — in-repository Anchor workspace, generated program identity, `PlayerProfile`, `RunSession`, `initialize_player`, `start_run`, `finish_run`, generated IDL/type bindings, frontend program configuration, and PDA helpers completed.
+- [ ] Deployment, MagicBlock, session keys, delegation, checkpoints, score verification, and leaderboard state remain excluded from Phase 1.
+
+## Milestone 6B Phase 2 completion
+
+- [x] **T20 (frontend integration scope)** — deployed Devnet program connection, PlayerProfile initialization/fetch, RunSession start/finish, persisted run recovery, transaction progress, duplicate prevention, and on-chain profile refresh completed.
+- [ ] MagicBlock, session keys, delegation, checkpoints, leaderboards, anti-cheat, and score verification remain excluded.
+
 | ID | Description | Dependencies | Complexity | Acceptance criteria |
 |---|---|---|---|---|
 | T01 | Create Vite React/TypeScript app with Tailwind, Framer Motion, strict lint/type settings, and PWA baseline | None | S | Production build succeeds and app installs with valid icons/manifest. |

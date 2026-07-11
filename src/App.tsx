@@ -3,10 +3,12 @@ import { audioManager } from './game/AudioManager'
 import { loadGameSettings } from './settings'
 import { assetManager, type AssetLoadProgress } from './game/AssetManager'
 import { useWalletFoundation } from './wallet/WalletContext'
+import { transactionStageLabel, useRanked } from './blockchain/RankedContext'
 
 const GameScreen = lazy(() => import('./game/GameScreen'))
 
 type Screen = 'splash' | 'loading' | 'home' | 'profile' | 'run'
+type RunMode = 'demo' | 'ranked'
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
@@ -144,6 +146,7 @@ function HomeScreen({ onPlayDemo, onRanked, onProfile, onInstall, canInstall }: 
 
 function ProfileScreen({ onHome }: { onHome: () => void }) {
   const wallet = useWalletFoundation()
+  const ranked = useRanked()
   return (
     <main className="home-screen profile-screen screen-fade">
       <BrandAtmosphere />
@@ -155,8 +158,9 @@ function ProfileScreen({ onHome }: { onHome: () => void }) {
           <div><dt>Wallet</dt><dd>{shortAddress(wallet.address)}</dd></div>
           <div><dt>Status</dt><dd>{wallet.connected ? `Connected${wallet.walletName ? ` • ${wallet.walletName}` : ''}` : 'Disconnected'}</dd></div>
           <div><dt>Network</dt><dd>{networkLabel(wallet.networkStatus)}</dd></div>
-          <div><dt>Ranked</dt><dd>{wallet.connected && wallet.networkStatus === 'devnet' ? 'Wallet ready • session key required' : 'Unavailable'}</dd></div>
+          <div><dt>Ranked</dt><dd>{wallet.connected && wallet.networkStatus === 'devnet' ? 'Available on Devnet' : 'Unavailable'}</dd></div>
           <div><dt>Demo</dt><dd>Available offline</dd></div>
+          {ranked.profile && <><div><dt>Runs</dt><dd>{ranked.profile.runsPlayed}</dd></div><div><dt>Best score</dt><dd>{ranked.profile.bestScore}</dd></div><div><dt>Best distance</dt><dd>{ranked.profile.bestDistance}m</dd></div></>}
         </dl>
         {wallet.networkStatus === 'wrong-network' && <button className="secondary-button" type="button" onClick={wallet.switchToDevnet}>Switch to Devnet</button>}
         {wallet.networkStatus === 'offline' && <p className="wallet-warning">Devnet could not be reached. Demo Mode remains available.</p>}
@@ -179,6 +183,7 @@ function networkLabel(status: ReturnType<typeof useWalletFoundation>['networkSta
 
 export default function App() {
   const wallet = useWalletFoundation()
+  const ranked = useRanked()
   const [screen, setScreen] = useState<Screen>('splash')
   const [progress, setProgress] = useState(0)
   const [loadingStatus, setLoadingStatus] = useState<string | undefined>()
@@ -187,6 +192,7 @@ export default function App() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches)
   const [settings] = useState(() => loadGameSettings())
+  const [runMode, setRunMode] = useState<RunMode>('demo')
 
   useEffect(() => {
     audioManager.applySettings(settings)
@@ -237,8 +243,9 @@ export default function App() {
     return () => window.clearInterval(tick)
   }, [assetLoading, screen])
 
-  const startDemo = async () => {
+  const loadRun = async (mode: RunMode) => {
     setMessage(null)
+    setRunMode(mode)
     setAssetLoading(true)
     setProgress(0)
     setLoadingStatus('Loading Assets...')
@@ -259,14 +266,9 @@ export default function App() {
     }
   }
 
-  const installApp = async () => {
-    if (!installPrompt) return
-    await installPrompt.prompt()
-    const choice = await installPrompt.userChoice
-    if (choice.outcome === 'accepted') setInstallPrompt(null)
-  }
+  const startDemo = () => { void loadRun('demo') }
 
-  const explainRanked = () => {
+  const startRanked = async () => {
     if (!wallet.connected) {
       setMessage('Connect a wallet before entering Ranked Mode.')
       return
@@ -275,7 +277,19 @@ export default function App() {
       setMessage(wallet.networkStatus === 'wrong-network' ? 'Ranked Mode requires Devnet. Confirm the switch from your Profile.' : 'Devnet is unavailable. Check your connection and try again.')
       return
     }
-    setMessage('Your wallet is ready. Ranked Mode remains locked until a session key is created in Milestone 6B.')
+    try {
+      await ranked.beginRun()
+      await loadRun('ranked')
+    } catch {
+      setScreen('home')
+    }
+  }
+
+  const installApp = async () => {
+    if (!installPrompt) return
+    await installPrompt.prompt()
+    const choice = await installPrompt.userChoice
+    if (choice.outcome === 'accepted') setInstallPrompt(null)
   }
 
   return (
@@ -292,12 +306,26 @@ export default function App() {
       {screen === 'loading' && <LoadingScreen progress={progress} status={loadingStatus} />}
       {screen === 'home' && (
         <>
-          <HomeScreen onPlayDemo={startDemo} onRanked={explainRanked} onProfile={() => setScreen('profile')} onInstall={installApp} canInstall={Boolean(installPrompt && !isInstalled)} />
+          <HomeScreen onPlayDemo={startDemo} onRanked={() => void startRanked()} onProfile={() => setScreen('profile')} onInstall={installApp} canInstall={Boolean(installPrompt && !isInstalled)} />
           {(message || wallet.error) && <div role="status" className="toast" onClick={wallet.clearError}>{message ?? wallet.error}</div>}
         </>
       )}
       {screen === 'profile' && <ProfileScreen onHome={() => setScreen('home')} />}
-      {screen === 'run' && <Suspense fallback={<LoadingScreen progress={100} status="Preparing Magic..." />}><GameScreen onHome={() => setScreen('home')} /></Suspense>}
+      {screen === 'run' && <Suspense fallback={<LoadingScreen progress={100} status="Preparing Magic..." />}><GameScreen mode={runMode} onHome={() => setScreen('home')} onRankedEnd={ranked.finishRun} onRankedRestart={ranked.beginRun} /></Suspense>}
+      <TransactionProgress />
     </div>
+  )
+}
+
+function TransactionProgress() {
+  const ranked = useRanked()
+  const stage = transactionStageLabel(ranked.transactionStage)
+  if (!stage && ranked.transactionStage !== 'error') return null
+  return (
+    <aside className={`transaction-progress ${ranked.transactionStage}`} role="status" aria-live="polite">
+      <span className="loading-mini-rune" aria-hidden="true" />
+      <div><small>{ranked.transactionLabel ?? 'Ranked transaction'}</small><strong>{ranked.error ?? stage}</strong></div>
+      {(ranked.transactionStage === 'complete' || ranked.transactionStage === 'error') && <button type="button" onClick={ranked.clearTransaction}>Close</button>}
+    </aside>
   )
 }

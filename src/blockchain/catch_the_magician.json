@@ -1,0 +1,363 @@
+{
+  "address": "74bg3UqJQTXJQihCw1JX7F3NWh9PUhj4UFqjE81rCpnR",
+  "metadata": {
+    "name": "catch_the_magician",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Catch the Magician ranked-run account foundation"
+  },
+  "instructions": [
+    {
+      "name": "finish_run",
+      "discriminator": [
+        125,
+        146,
+        243,
+        213,
+        56,
+        220,
+        214,
+        25
+      ],
+      "accounts": [
+        {
+          "name": "player_profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          },
+          "relations": [
+            "run_session"
+          ]
+        },
+        {
+          "name": "run_session",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  117,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "account",
+                "path": "run_session.run_id",
+                "account": "RunSession"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "player_profile"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "final_score",
+          "type": "u64"
+        },
+        {
+          "name": "final_distance",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_player",
+      "discriminator": [
+        79,
+        249,
+        88,
+        177,
+        220,
+        62,
+        56,
+        128
+      ],
+      "accounts": [
+        {
+          "name": "player_profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "start_run",
+      "discriminator": [
+        72,
+        212,
+        1,
+        91,
+        61,
+        186,
+        2,
+        52
+      ],
+      "accounts": [
+        {
+          "name": "player_profile",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "run_session",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  117,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "arg",
+                "path": "run_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "player_profile"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "run_id",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "PlayerProfile",
+      "discriminator": [
+        82,
+        226,
+        99,
+        87,
+        164,
+        130,
+        181,
+        80
+      ]
+    },
+    {
+      "name": "RunSession",
+      "discriminator": [
+        112,
+        45,
+        137,
+        134,
+        225,
+        63,
+        28,
+        131
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "RunNotActive",
+      "msg": "This run is not active."
+    },
+    {
+      "code": 6001,
+      "name": "InvalidRunAuthority",
+      "msg": "The run authority does not match the connected wallet."
+    },
+    {
+      "code": 6002,
+      "name": "InvalidPlayerProfile",
+      "msg": "The run belongs to a different player profile."
+    },
+    {
+      "code": 6003,
+      "name": "ArithmeticOverflow",
+      "msg": "A profile counter exceeded its supported range."
+    }
+  ],
+  "types": [
+    {
+      "name": "PlayerProfile",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "runs_played",
+            "type": "u64"
+          },
+          {
+            "name": "best_score",
+            "type": "u64"
+          },
+          {
+            "name": "best_distance",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RunSession",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "player_profile",
+            "type": "pubkey"
+          },
+          {
+            "name": "run_id",
+            "type": "u64"
+          },
+          {
+            "name": "started_at",
+            "type": "i64"
+          },
+          {
+            "name": "finished_at",
+            "type": "i64"
+          },
+          {
+            "name": "final_score",
+            "type": "u64"
+          },
+          {
+            "name": "final_distance",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "RunStatus"
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RunStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Finished"
+          }
+        ]
+      }
+    }
+  ]
+}
