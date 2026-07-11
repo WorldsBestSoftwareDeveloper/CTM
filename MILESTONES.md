@@ -1,0 +1,18 @@
+# Playable Milestones
+
+Every milestone ends in a build that can be launched, exercised, and demonstrated independently.
+
+| Milestone | Playable result | Acceptance criteria |
+|---|---|---|
+| 1. Instant Demo | **Complete.** Splash, loading, Home, and offline Demo run | Home is actionable within 15 seconds; Play Demo works with network disabled; restart returns to a live run. |
+| 2. Core Runner | **Complete.** Three-lane movement, jump, slide, placeholder collision, pause, and a future-demon integration seam | Keyboard and swipe controls work; death produces a result and Play Again; pause freezes simulation. The demon remains excluded until an approved future milestone. |
+| 3. Arcane World | **Complete.** GLTF hero, recycled ruins chunks, visible environment-kit obstacles, pooled collectibles, pooled VFX, and obstacle-based collisions | A multi-minute run has bounded chunk/obstacle/collectible pools; every obstacle has a visible mesh or immediate visible fallback; no invisible full-width death trigger or ghost lane collision remains. |
+| 3.5. Runner Polish | **Complete.** Demon chase, proximity tension, deterministic handcrafted obstacle patterns, difficulty scaling, camera/lighting/VFX polish | Demon remains behind the player and catches only after a readable proximity build; obstacle patterns are deterministic, weighted, and solvable; no wallet, MagicBlock, Solana, audio system, settings, or accessibility work is included. |
+| 4A. Audio Integration | **Complete.** Ambient/chase music, animation-synced footsteps, and cooldown-gated demon roars | Audio preloads once, music crossfades by demon proximity, footsteps stop outside normal running cadence, roars never overlap or spam, and no settings/accessibility/UI/blockchain work is included. |
+| 4B. Game Feel & Settings | **Complete.** Game-feel polish, visual effects polish, HUD presentation polish, and persisted lightweight settings | Camera/animation/effects feel smoother; reduced bloom/shake, audio controls, and swipe sensitivity are usable without changing gameplay mechanics or future integration scope. |
+| 4. Polished Accessible | Partially complete through 4A/4B; remaining final navigation/orientation/accessibility QA is later scope | Reduced bloom/shake, audio controls, sensitivity, and silhouette-safe hazards are usable. |
+| Pre-5. Premium Startup | **Complete.** Official-logo splash, premium loading, loading tips, and non-blocking hero preview | First impression is upgraded while preserving startup budget, Demo/Ranked flow, gameplay scene, PWA logic, wallet/blockchain scope, and game balance. |
+| 5. Installable Offline | **Complete.** Premium loading/Home polish, PWA install prompt, manifest/icon polish, app-shell precache, and on-demand runtime caching for gameplay assets | Production build generates the PWA service worker; Home remains fast and lightweight; official brand assets are available to the app shell; audio/character/environment assets cache after first request instead of being eagerly precached. Full installed-device offline smoke testing remains for Demo-Ready QA. |
+| 6. Ranked Devnet | Wallet/MWA, session key, delegated ER run | Connected user can start, checkpoint, end, commit, and undelegate a Devnet run; failure remains understandable. |
+| 7. Global Leaderboard | Profile persistence and global ranked scores | Final ranked score updates PlayerProfile and bounded GlobalLeaderboard; Demo never writes chain state. |
+| 8. Demo-Ready | Performance, mobile QA, recovery, deployment walkthrough | Performance budgets checked on target devices; judge flow works end-to-end; fallback Demo flow works offline. |
