@@ -11,7 +11,7 @@ export interface WalletFoundationState {
   networkStatus: WalletNetworkStatus
   error: string | null
   mobileWalletSupported: boolean
-  openWalletSelector: () => void
+  openWalletSelector: () => Promise<void>
   disconnect: () => Promise<void>
   switchToDevnet: () => void
   clearError: () => void

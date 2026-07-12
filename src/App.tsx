@@ -312,8 +312,47 @@ export default function App() {
       )}
       {screen === 'profile' && <ProfileScreen onHome={() => setScreen('home')} />}
       {screen === 'run' && <Suspense fallback={<LoadingScreen progress={100} status="Preparing Magic..." />}><GameScreen mode={runMode} onHome={() => setScreen('home')} onRankedEnd={ranked.finishRun} onRankedRestart={ranked.beginRun} /></Suspense>}
+      {import.meta.env.DEV && <WalletStatusIndicator />}
       <TransactionProgress />
     </div>
+  )
+}
+
+function WalletStatusIndicator() {
+  const wallet = useWalletFoundation()
+  const ranked = useRanked()
+  const hasError = Boolean(wallet.error || ranked.error || ranked.transactionStage === 'error')
+  const awaitingApproval = ranked.transactionStage === 'awaiting-approval'
+  const connecting = wallet.connecting || wallet.disconnecting || ranked.transactionStage === 'preparing'
+  const connected = wallet.connected
+  const state = hasError ? 'error' : awaitingApproval ? 'approval' : connecting ? 'connecting' : connected ? 'connected' : 'idle'
+  const label = state === 'error'
+    ? 'Error (Retry)'
+    : state === 'approval'
+      ? 'Awaiting Approval...'
+      : state === 'connecting'
+        ? 'Connecting...'
+        : state === 'connected'
+          ? 'Wallet Connected'
+          : 'Wallet Idle'
+
+  const retry = async () => {
+    wallet.clearError()
+    ranked.clearTransaction()
+    if (!wallet.connected) await wallet.openWalletSelector()
+  }
+
+  if (state === 'idle') return null
+  return (
+    <button
+      className={`wallet-status-indicator ${state}`}
+      type="button"
+      onClick={state === 'error' ? () => void retry() : undefined}
+      aria-label={`Wallet status: ${label}`}
+    >
+      <span aria-hidden="true" />
+      {label}
+    </button>
   )
 }
 
