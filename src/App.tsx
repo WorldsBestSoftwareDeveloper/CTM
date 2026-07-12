@@ -4,6 +4,7 @@ import { loadGameSettings } from './settings'
 import { assetManager, type AssetLoadProgress } from './game/AssetManager'
 import { useWalletFoundation } from './wallet/WalletContext'
 import { transactionStageLabel, useRanked } from './blockchain/RankedContext'
+import { useMagicBlock } from './blockchain/MagicBlockContext'
 
 const GameScreen = lazy(() => import('./game/GameScreen'))
 
@@ -184,6 +185,7 @@ function networkLabel(status: ReturnType<typeof useWalletFoundation>['networkSta
 export default function App() {
   const wallet = useWalletFoundation()
   const ranked = useRanked()
+  const magicBlock = useMagicBlock()
   const [screen, setScreen] = useState<Screen>('splash')
   const [progress, setProgress] = useState(0)
   const [loadingStatus, setLoadingStatus] = useState<string | undefined>()
@@ -281,6 +283,7 @@ export default function App() {
       await ranked.beginRun()
       await loadRun('ranked')
     } catch {
+      setMessage('Unable to start Ranked session.')
       setScreen('home')
     }
   }
@@ -308,6 +311,15 @@ export default function App() {
         <>
           <HomeScreen onPlayDemo={startDemo} onRanked={() => void startRanked()} onProfile={() => setScreen('profile')} onInstall={installApp} canInstall={Boolean(installPrompt && !isInstalled)} />
           {(message || wallet.error) && <div role="status" className="toast" onClick={wallet.clearError}>{message ?? wallet.error}</div>}
+          {message === 'Unable to start Ranked session.' && (
+            <aside className="ranked-session-recovery" role="alert">
+              <strong>Unable to start Ranked session.</strong>
+              <div>
+                <button type="button" onClick={() => { magicBlock.clearError(); setMessage(null); void startRanked() }}>Retry</button>
+                <button type="button" onClick={() => { magicBlock.clearError(); setMessage(null); setScreen('home') }}>Return Home</button>
+              </div>
+            </aside>
+          )}
         </>
       )}
       {screen === 'profile' && <ProfileScreen onHome={() => setScreen('home')} />}

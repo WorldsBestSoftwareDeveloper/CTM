@@ -1,14 +1,40 @@
 import { AnchorProvider, BN } from '@coral-xyz/anchor'
 import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react'
-import type { Transaction } from '@solana/web3.js'
+import type { PublicKey, Transaction } from '@solana/web3.js'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createCatchTheMagicianProgram, derivePlayerProfileAddress, deriveRunSessionAddress } from './program'
 import { RankedContext, type OnChainProfile, type TransactionStage } from './RankedContext'
+import { useMagicBlock } from './MagicBlockContext'
 
 const rpcTimeoutMs = 20000
 
+type TransactionBuilder = { transaction: () => Promise<Transaction> }
+type StartRunBuilder = (runId: BN, sessionAuthority: PublicKey) => {
+  accountsPartial: (accounts: { playerProfile: PublicKey; runSession: PublicKey; authority: PublicKey }) => TransactionBuilder
+}
+type DelegateRunSessionBuilder = (runId: BN) => {
+  accountsPartial: (accounts: { payer: PublicKey; pda: PublicKey }) => {
+    remainingAccounts: (accounts: { pubkey: PublicKey; isSigner: boolean; isWritable: boolean }[]) => TransactionBuilder
+  }
+}
+type DelegatePlayerProfileBuilder = () => {
+  accountsPartial: (accounts: { payer: PublicKey; pda: PublicKey }) => {
+    remainingAccounts: (accounts: { pubkey: PublicKey; isSigner: boolean; isWritable: boolean }[]) => TransactionBuilder
+  }
+}
+type UndelegateRankedSessionBuilder = () => {
+  accountsPartial: (accounts: { payer: PublicKey; playerProfile: PublicKey; runSession: PublicKey }) => TransactionBuilder
+}
+interface MagicBlockProgramMethods {
+  startRun: StartRunBuilder
+  delegateRunSession: DelegateRunSessionBuilder
+  delegatePlayerProfile: DelegatePlayerProfileBuilder
+  undelegateRankedSession: UndelegateRankedSessionBuilder
+}
+
 export function RankedProvider({ children }: { children: ReactNode }) {
   const { connection } = useConnection()
+  const magicBlock = useMagicBlock()
   const signingWallet = useAnchorWallet()
   const { connected, publicKey, wallet } = useWallet()
   const [profile, setProfile] = useState<OnChainProfile | null>(null)
@@ -120,11 +146,12 @@ export function RankedProvider({ children }: { children: ReactNode }) {
     return operation
   }, [walletAddress])
 
-  const send = useCallback(async (builder: { transaction: () => Promise<Transaction> }): Promise<string> => {
+  const send = useCallback(async (builder: TransactionBuilder, route: 'base' | 'router' = 'base'): Promise<string> => {
     if (!signingWallet || !walletAddress || !connected) throw new Error('Connect a wallet before starting Ranked Mode.')
     const lifecycle = lifecycleRef.current
     const transaction = await builder.transaction()
-    const latest = await withTimeout(connection.getLatestBlockhash('confirmed'), 'RPC timed out while preparing the transaction.')
+    const transactionConnection = route === 'router' ? magicBlock.routerConnection : connection
+    const latest = await withTimeout(transactionConnection.getLatestBlockhash('confirmed'), 'RPC timed out while preparing the transaction.')
     if (lifecycle !== lifecycleRef.current) throw new Error('Wallet changed before the transaction could be signed.')
     transaction.feePayer = signingWallet.publicKey
     transaction.recentBlockhash = latest.blockhash
@@ -133,16 +160,16 @@ export function RankedProvider({ children }: { children: ReactNode }) {
     const signed = await signingWallet.signTransaction(transaction)
     if (lifecycle !== lifecycleRef.current) throw new Error('Wallet changed before the signed transaction could be sent.')
     setTransactionStage('sending')
-    const signature = await withTimeout(connection.sendRawTransaction(signed.serialize(), { preflightCommitment: 'confirmed' }), 'RPC timed out while sending the transaction.')
+    const signature = await withTimeout(transactionConnection.sendRawTransaction(signed.serialize(), { preflightCommitment: 'confirmed' }), 'RPC timed out while sending the transaction.')
     setTransactionSignature(signature)
-    debugRanked('transaction:sent', { wallet: walletAddress, signature })
+    debugRanked('transaction:sent', { wallet: walletAddress, signature, route })
     setTransactionStage('confirming')
-    const confirmation = await withTimeout(connection.confirmTransaction({ signature, ...latest }, 'confirmed'), 'RPC timed out while confirming the transaction.')
+    const confirmation = await withTimeout(transactionConnection.confirmTransaction({ signature, ...latest }, 'confirmed'), 'RPC timed out while confirming the transaction.')
     if (confirmation.value.err) throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
     setTransactionStage('complete')
-    debugRanked('transaction:confirmed', { wallet: walletAddress, signature })
+    debugRanked('transaction:confirmed', { wallet: walletAddress, signature, route })
     return signature
-  }, [connected, connection, signingWallet, walletAddress])
+  }, [connected, connection, magicBlock.routerConnection, signingWallet, walletAddress])
 
   const beginRun = useCallback(() => execute('Starting Ranked run', async () => {
     if (!program || !signingWallet || !walletAddress) throw new Error('Connect a wallet before starting Ranked Mode.')
@@ -163,25 +190,62 @@ export function RankedProvider({ children }: { children: ReactNode }) {
       debugRanked('profile:initialize:complete', { wallet: walletAddress })
     }
 
+    setTransactionStage('connecting-session')
+    const session = await magicBlock.prepareSession()
+    setTransactionStage('creating-session')
+
     const runId = BigInt(Date.now())
     const [runAddress] = deriveRunSessionAddress(signingWallet.publicKey, runId)
-    await send(program.methods.startRun(new BN(runId.toString())).accountsPartial({ playerProfile: profileAddress, runSession: runAddress, authority: signingWallet.publicKey }))
+    const methods = program.methods as unknown as MagicBlockProgramMethods
+    const startRun = methods.startRun
+    await send(startRun(new BN(runId.toString()), session.publicKey).accountsPartial({ playerProfile: profileAddress, runSession: runAddress, authority: signingWallet.publicKey }), 'router')
+
+    setTransactionStage('delegating')
+    const runDelegated = await magicBlock.getDelegationStatus(runAddress).catch(() => false)
+    if (!runDelegated) {
+      const delegateRunSession = methods.delegateRunSession
+      await send(delegateRunSession(new BN(runId.toString())).accountsPartial({ payer: signingWallet.publicKey, pda: runAddress }).remainingAccounts([{ pubkey: magicBlock.validator, isSigner: false, isWritable: false }]), 'router')
+    }
+    const profileDelegated = await magicBlock.getDelegationStatus(profileAddress).catch(() => false)
+    if (!profileDelegated) {
+      const delegatePlayerProfile = methods.delegatePlayerProfile
+      await send(delegatePlayerProfile().accountsPartial({ payer: signingWallet.publicKey, pda: profileAddress }).remainingAccounts([{ pubkey: magicBlock.validator, isSigner: false, isWritable: false }]), 'router')
+    }
+
     setActiveRunId(runId)
     if (key) window.localStorage.setItem(key, runId.toString())
+    setTransactionStage('ready')
     debugRanked('run:start:complete', { wallet: walletAddress, runId: runId.toString() })
-  }), [activeRunId, execute, program, readProfile, send, signingWallet, storageKey, walletAddress])
+  }), [activeRunId, execute, magicBlock, program, readProfile, send, signingWallet, storageKey, walletAddress])
 
   const finishRun = useCallback((score: number, distance: number) => execute('Saving Ranked result', async () => {
     if (!program || !signingWallet || !walletAddress || activeRunId === null) throw new Error('No active Ranked run was found.')
     const [profileAddress] = derivePlayerProfileAddress(signingWallet.publicKey)
     const [runAddress] = deriveRunSessionAddress(signingWallet.publicKey, activeRunId)
-    await send(program.methods.finishRun(new BN(Math.max(0, Math.floor(score))), new BN(Math.max(0, Math.floor(distance)))).accountsPartial({ playerProfile: profileAddress, runSession: runAddress, authority: signingWallet.publicKey }))
+    const session = magicBlock.session ?? await magicBlock.prepareSession()
+    setTransactionStage('settling')
+    const finishTx = await program.methods
+      .finishRun(new BN(Math.max(0, Math.floor(score))), new BN(Math.max(0, Math.floor(distance))))
+      .accountsPartial({ playerProfile: profileAddress, runSession: runAddress, authority: session.publicKey })
+      .transaction()
+    const finishSignature = await magicBlock.sendSessionTransaction(finishTx)
+    setTransactionSignature(finishSignature)
+
+    const methods = program.methods as unknown as MagicBlockProgramMethods
+    const undelegateRankedSession = methods.undelegateRankedSession
+    const undelegateTx = await undelegateRankedSession()
+      .accountsPartial({ payer: session.publicKey, playerProfile: profileAddress, runSession: runAddress })
+      .transaction()
+    const undelegateSignature = await magicBlock.sendSessionTransaction(undelegateTx)
+    setTransactionSignature(undelegateSignature)
+    setTransactionStage('complete')
     setActiveRunId(null)
     const key = storageKey()
     if (key) window.localStorage.removeItem(key)
+    magicBlock.clearCompletedSession()
     await readProfile()
     debugRanked('run:finish:complete', { wallet: walletAddress, score, distance })
-  }), [activeRunId, execute, program, readProfile, send, signingWallet, storageKey, walletAddress])
+  }), [activeRunId, execute, magicBlock, program, readProfile, signingWallet, storageKey, walletAddress])
 
   const value = useMemo(() => ({
     profile,

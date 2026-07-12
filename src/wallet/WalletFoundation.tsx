@@ -6,7 +6,7 @@ import { clusterApiUrl } from '@solana/web3.js'
 import '@solana/wallet-adapter-react-ui/styles.css'
 import { WalletFoundationContext, type WalletFoundationState, type WalletNetworkStatus } from './WalletContext'
 
-const devnetGenesisHash = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1'
+const devnetGenesisHash = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG'
 const defaultDevnetEndpoint = clusterApiUrl(WalletAdapterNetwork.Devnet)
 const walletStorageKey = 'ctm:wallet-adapter'
 
@@ -54,25 +54,53 @@ function WalletStateBridge({ children, endpoint, adapterError, setAdapterError, 
   const lastStatusRef = useRef<string>('')
   const walletAddress = publicKey?.toBase58() ?? null
   const walletName = wallet?.adapter.name ?? null
+  const connectionEndpoint = connection.rpcEndpoint
 
   const checkNetwork = useCallback(async () => {
-    debugWallet('network-check:start', { endpoint })
+    debugWallet('network-check:start', getNetworkDebugDetails({
+      configuredEndpoint: endpoint,
+      connectionEndpoint,
+      walletAddress,
+      walletName,
+      walletAdapterNetwork: getWalletAdapterNetwork(wallet?.adapter),
+    }))
     setNetworkStatus('checking')
     try {
       const genesisHash = await Promise.race([
         connection.getGenesisHash(),
         new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error('RPC timeout')), 8000)),
       ])
+      const detectedCluster = clusterFromGenesisHash(genesisHash)
       const nextStatus = genesisHash === devnetGenesisHash ? 'devnet' : 'wrong-network'
-      debugWallet('network-check:complete', { endpoint, status: nextStatus, genesisHash })
+      debugWallet('network-check:complete', getNetworkDebugDetails({
+        configuredEndpoint: endpoint,
+        connectionEndpoint,
+        walletAddress,
+        walletName,
+        walletAdapterNetwork: getWalletAdapterNetwork(wallet?.adapter),
+        genesisHash,
+        detectedCluster,
+        validationResult: nextStatus,
+      }))
       setNetworkStatus(nextStatus)
     } catch (error) {
       console.warn(`[WalletFoundation] Unable to validate RPC network: ${endpoint}`, error)
+      debugWallet('network-check:error', getNetworkDebugDetails({
+        configuredEndpoint: endpoint,
+        connectionEndpoint,
+        walletAddress,
+        walletName,
+        walletAdapterNetwork: getWalletAdapterNetwork(wallet?.adapter),
+        validationResult: 'offline',
+      }))
       setNetworkStatus('offline')
     }
-  }, [connection, endpoint])
+  }, [connection, connectionEndpoint, endpoint, wallet?.adapter, walletAddress, walletName])
 
   useEffect(() => { void checkNetwork() }, [checkNetwork])
+  useEffect(() => {
+    if (connected) void checkNetwork()
+  }, [checkNetwork, connected, walletAddress, walletName])
   useEffect(() => {
     if (!connecting) return
     debugWallet('connect:pending', { wallet: walletName })
@@ -83,9 +111,18 @@ function WalletStateBridge({ children, endpoint, adapterError, setAdapterError, 
     const status = JSON.stringify({ walletName, walletAddress, connected, connecting, disconnecting, readyState: wallet?.readyState })
     if (lastStatusRef.current === status) return
     lastStatusRef.current = status
-    debugWallet('state', { wallet: walletName, address: walletAddress, connected, connecting, disconnecting, readyState: wallet?.readyState })
+    debugWallet('state', {
+      wallet: walletName,
+      address: walletAddress,
+      connected,
+      connecting,
+      disconnecting,
+      readyState: wallet?.readyState,
+      walletAdapterNetwork: getWalletAdapterNetwork(wallet?.adapter),
+      connectionEndpoint,
+    })
     if (connected) setAdapterError(null)
-  }, [connected, connecting, disconnecting, setAdapterError, wallet?.readyState, walletAddress, walletName])
+  }, [connected, connecting, connectionEndpoint, disconnecting, setAdapterError, wallet?.adapter, wallet?.readyState, walletAddress, walletName])
   useEffect(() => {
     const adapter = wallet?.adapter
     if (!adapter) return
@@ -188,5 +225,36 @@ function friendlyWalletErrorMessage(rawMessage: string): string {
 }
 
 function debugWallet(event: string, details: Record<string, unknown> = {}) {
-  console.debug(`[WalletFoundation] ${event}`, details)
+  if (import.meta.env.DEV) console.debug(`[WalletFoundation] ${event}`, details)
+}
+
+function clusterFromGenesisHash(genesisHash: string): WalletNetworkStatus {
+  return genesisHash === devnetGenesisHash ? 'devnet' : 'wrong-network'
+}
+
+function getWalletAdapterNetwork(adapter: unknown): unknown {
+  if (!adapter || typeof adapter !== 'object') return null
+  return 'network' in adapter ? (adapter as { network?: unknown }).network : null
+}
+
+function getNetworkDebugDetails(details: {
+  configuredEndpoint: string
+  connectionEndpoint: string
+  walletAddress: string | null
+  walletName: string | null
+  walletAdapterNetwork: unknown
+  genesisHash?: string
+  detectedCluster?: WalletNetworkStatus
+  validationResult?: WalletNetworkStatus
+}): Record<string, unknown> {
+  return {
+    rpcEndpoint: details.configuredEndpoint,
+    connectionEndpoint: details.connectionEndpoint,
+    genesisHash: details.genesisHash ?? null,
+    detectedCluster: details.detectedCluster ?? null,
+    walletPublicKey: details.walletAddress,
+    walletAdapterName: details.walletName,
+    walletAdapterNetwork: details.walletAdapterNetwork,
+    networkValidationResult: details.validationResult ?? null,
+  }
 }

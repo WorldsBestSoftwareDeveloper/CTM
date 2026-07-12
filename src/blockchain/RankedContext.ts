@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 
-export type TransactionStage = 'idle' | 'preparing' | 'awaiting-approval' | 'sending' | 'confirming' | 'complete' | 'error'
+export type TransactionStage = 'idle' | 'preparing' | 'connecting-session' | 'creating-session' | 'delegating' | 'ready' | 'awaiting-approval' | 'sending' | 'confirming' | 'settling' | 'complete' | 'error'
 
 export interface OnChainProfile {
   address: string
@@ -33,9 +33,14 @@ export function useRanked(): RankedState {
 
 export function transactionStageLabel(stage: TransactionStage): string | null {
   if (stage === 'preparing') return 'Preparing...'
+  if (stage === 'connecting-session') return 'Preparing Ranked Session...'
+  if (stage === 'creating-session') return 'Creating Session...'
+  if (stage === 'delegating') return 'Delegating Session...'
+  if (stage === 'ready') return 'Ready'
   if (stage === 'awaiting-approval') return 'Awaiting wallet approval...'
   if (stage === 'sending') return 'Sending...'
   if (stage === 'confirming') return 'Confirming...'
+  if (stage === 'settling') return 'Settling Result...'
   if (stage === 'complete') return 'Complete'
   return null
 }

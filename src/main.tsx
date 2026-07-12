@@ -4,6 +4,7 @@ import App from './App'
 import './styles.css'
 import { WalletFoundationProvider } from './wallet/WalletFoundation'
 import { RankedProvider } from './blockchain/RankedProvider'
+import { MagicBlockProvider } from './blockchain/MagicBlockProvider'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -14,9 +15,11 @@ if ('serviceWorker' in navigator) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WalletFoundationProvider>
-      <RankedProvider>
-        <App />
-      </RankedProvider>
+      <MagicBlockProvider>
+        <RankedProvider>
+          <App />
+        </RankedProvider>
+      </MagicBlockProvider>
     </WalletFoundationProvider>
   </StrictMode>,
 )
