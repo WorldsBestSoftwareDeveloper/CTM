@@ -167,7 +167,7 @@ function DisconnectedMagicBlockProvider({ children }: { children: ReactNode }) {
 function useBaseMagicBlockState() {
   const routerEndpoint = import.meta.env.VITE_MAGICBLOCK_ROUTER_URL?.trim() || defaultRouterEndpoint
   const ephemeralEndpoint = import.meta.env.VITE_MAGICBLOCK_ER_URL?.trim() || defaultEphemeralEndpoint
-  const validator = useMemo(() => new PublicKey(import.meta.env.VITE_MAGICBLOCK_VALIDATOR_ID?.trim() || defaultValidator), [])
+  const validator = useMemo(() => safePublicKey(import.meta.env.VITE_MAGICBLOCK_VALIDATOR_ID, defaultValidator, 'MagicBlock validator'), [])
   const routerConnection = useMemo(() => new ConnectionMagicRouter(routerEndpoint, { commitment: 'confirmed' }), [routerEndpoint])
   const ephemeralConnection = useMemo(() => new Connection(ephemeralEndpoint, { commitment: 'confirmed' }), [ephemeralEndpoint])
   const getDelegationStatus = useCallback(async (account: PublicKey) => {
@@ -305,4 +305,18 @@ function useMagicBlockSessionManager(anchorWallet: AnchorWallet, connection: Con
 
 function debugMagicBlock(event: string, details: Record<string, unknown> = {}) {
   if (import.meta.env.DEV) console.debug(`[MagicBlock] ${event}`, details)
+}
+
+function safePublicKey(value: string | undefined, fallback: string, label: string): PublicKey {
+  const cleaned = value?.trim().replace(/^['"]|['"]$/g, '') || fallback
+  try {
+    return new PublicKey(cleaned)
+  } catch (error) {
+    console.warn(`[MagicBlock] Invalid ${label}; falling back to the default Devnet value.`, {
+      configured: value ? '[configured but invalid]' : '[missing]',
+      fallback,
+      error,
+    })
+    return new PublicKey(fallback)
+  }
 }
