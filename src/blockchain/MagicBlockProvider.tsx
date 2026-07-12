@@ -1,7 +1,10 @@
-import { useSessionKeyManager } from '@magicblock-labs/gum-react-sdk'
+import { BN } from '@coral-xyz/anchor'
+import { SessionTokenManager } from '@magicblock-labs/gum-sdk'
 import { ConnectionMagicRouter } from '@magicblock-labs/ephemeral-rollups-sdk'
 import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react'
-import { Connection, PublicKey, type Transaction } from '@solana/web3.js'
+import { Connection, Keypair, PublicKey, type Transaction } from '@solana/web3.js'
+import type { AnchorWallet } from '@solana/wallet-adapter-react'
+import type { SendTransactionOptions } from '@solana/wallet-adapter-base'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CATCH_THE_MAGICIAN_PROGRAM_ID } from './program'
 import { MagicBlockContext, type MagicBlockSession, type MagicBlockStage, type MagicBlockState } from './MagicBlockContext'
@@ -11,6 +14,7 @@ const defaultEphemeralEndpoint = 'https://devnet.magicblock.app'
 const defaultValidator = 'MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57'
 const sessionDurationMinutes = 60
 const sessionTopUpLamports = 2_000_000
+const sessionStoragePrefix = 'ctm:magicblock-session'
 
 export function MagicBlockProvider({ children }: { children: ReactNode }) {
   const anchorWallet = useAnchorWallet()
@@ -22,7 +26,7 @@ function ConnectedMagicBlockProvider({ children }: { children: ReactNode }) {
   const { connection } = useConnection()
   const anchorWallet = useAnchorWallet()
   if (!anchorWallet) throw new Error('ConnectedMagicBlockProvider requires an Anchor wallet.')
-  const sessionWallet = useSessionKeyManager(anchorWallet, connection, 'devnet')
+  const sessionWallet = useMagicBlockSessionManager(anchorWallet, connection)
   const base = useBaseMagicBlockState()
   const [stage, setStage] = useState<MagicBlockStage>('idle')
   const [statusText, setStatusText] = useState<string | null>(null)
@@ -128,6 +132,7 @@ function ConnectedMagicBlockProvider({ children }: { children: ReactNode }) {
       setStatusText('Settling Result...')
     },
     clearCompletedSession: () => {
+      sessionWallet.clearSession()
       setSession(null)
       setStage('idle')
       setStatusText(null)
@@ -137,7 +142,7 @@ function ConnectedMagicBlockProvider({ children }: { children: ReactNode }) {
       setError(null)
       if (stage === 'error') setStage('idle')
     },
-  }), [base, error, prepareSession, sendSessionTransaction, session, sessionWallet.error, stage, statusText])
+  }), [base, error, prepareSession, sendSessionTransaction, session, sessionWallet, stage, statusText])
 
   return <MagicBlockContext.Provider value={value}>{children}</MagicBlockContext.Provider>
 }
@@ -171,6 +176,131 @@ function useBaseMagicBlockState() {
     return status.isDelegated
   }, [routerConnection])
   return useMemo(() => ({ routerConnection, ephemeralConnection, validator, getDelegationStatus }), [ephemeralConnection, getDelegationStatus, routerConnection, validator])
+}
+
+interface StoredSession {
+  token: string
+  secretKey: number[]
+  validUntil: number
+}
+
+function useMagicBlockSessionManager(anchorWallet: AnchorWallet, connection: Connection) {
+  const [sessionToken, setSessionToken] = useState<string | null>(null)
+  const [sessionKeypair, setSessionKeypair] = useState<Keypair | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const manager = useMemo(() => new SessionTokenManager(anchorWallet, connection), [anchorWallet, connection])
+  const storageKey = useMemo(
+    () => `${sessionStoragePrefix}:${anchorWallet.publicKey.toBase58()}:${CATCH_THE_MAGICIAN_PROGRAM_ID.toBase58()}`,
+    [anchorWallet.publicKey],
+  )
+
+  const clearSession = useCallback(() => {
+    window.localStorage.removeItem(storageKey)
+    setSessionToken(null)
+    setSessionKeypair(null)
+  }, [storageKey])
+
+  const getSessionToken = useCallback(async () => {
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) {
+      clearSession()
+      return null
+    }
+    try {
+      const stored = JSON.parse(raw) as StoredSession
+      const now = Math.ceil(Date.now() / 1000)
+      if (!stored.token || !stored.secretKey?.length || now >= stored.validUntil) {
+        clearSession()
+        return null
+      }
+      const token = new PublicKey(stored.token)
+      const keypair = Keypair.fromSecretKey(Uint8Array.from(stored.secretKey))
+      const account = await manager.get(token)
+      if (
+        !account.authority.equals(anchorWallet.publicKey)
+        || !account.targetProgram.equals(CATCH_THE_MAGICIAN_PROGRAM_ID)
+        || !account.sessionSigner.equals(keypair.publicKey)
+        || account.validUntil.toNumber() <= now
+      ) {
+        clearSession()
+        return null
+      }
+      setSessionToken(stored.token)
+      setSessionKeypair(keypair)
+      setError(null)
+      return stored.token
+    } catch (reason) {
+      debugMagicBlock('session:stored-invalid', { reason })
+      clearSession()
+      return null
+    }
+  }, [anchorWallet.publicKey, clearSession, manager, storageKey])
+
+  const createSession = useCallback(async (
+    targetProgram: PublicKey,
+    topUpLamports = 0,
+    validForMinutes = sessionDurationMinutes,
+    sessionCreatedCallback?: (sessionInfo: { sessionToken: string; publicKey: string }) => void,
+  ) => {
+    try {
+      const keypair = Keypair.generate()
+      const validUntil = Math.ceil((Date.now() + validForMinutes * 60 * 1000) / 1000)
+      const topUp = topUpLamports > 0
+      const builder = manager.program.methods
+        .createSession(topUp, new BN(validUntil), topUp ? new BN(topUpLamports) : null)
+        .accounts({
+          targetProgram,
+          sessionSigner: keypair.publicKey,
+          authority: anchorWallet.publicKey,
+        })
+        .signers([keypair])
+      const pubkeys = await builder.pubkeys()
+      await builder.rpc()
+      if (!pubkeys.sessionToken) throw new Error('MagicBlock session token PDA was not returned.')
+      const token = pubkeys.sessionToken.toBase58()
+      const stored: StoredSession = {
+        token,
+        secretKey: Array.from(keypair.secretKey),
+        validUntil,
+      }
+      window.localStorage.setItem(storageKey, JSON.stringify(stored))
+      setSessionToken(token)
+      setSessionKeypair(keypair)
+      setError(null)
+      sessionCreatedCallback?.({ sessionToken: token, publicKey: keypair.publicKey.toBase58() })
+      return { sessionToken: token, publicKey: keypair.publicKey }
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : String(reason)
+      setError(message)
+      throw reason
+    }
+  }, [anchorWallet.publicKey, manager, storageKey])
+
+  const sendTransaction = useCallback(async (
+    transaction: Transaction,
+    transactionConnection = connection,
+    options: SendTransactionOptions = {},
+  ) => {
+    if (!sessionKeypair || !sessionToken) throw new Error('Cannot send transaction before a MagicBlock session is ready.')
+    transaction.feePayer = transaction.feePayer ?? sessionKeypair.publicKey
+    transaction.recentBlockhash = transaction.recentBlockhash
+      ?? (await transactionConnection.getLatestBlockhash({
+        commitment: options.preflightCommitment,
+        minContextSlot: options.minContextSlot,
+      })).blockhash
+    transaction.sign(sessionKeypair)
+    return transactionConnection.sendRawTransaction(transaction.serialize(), options)
+  }, [connection, sessionKeypair, sessionToken])
+
+  return useMemo(() => ({
+    publicKey: sessionToken && sessionKeypair ? sessionKeypair.publicKey : null,
+    sessionToken,
+    error,
+    getSessionToken,
+    createSession,
+    sendTransaction,
+    clearSession,
+  }), [clearSession, createSession, error, getSessionToken, sendTransaction, sessionKeypair, sessionToken])
 }
 
 function debugMagicBlock(event: string, details: Record<string, unknown> = {}) {

@@ -1,7 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { Connection, PublicKey, Transaction } from '@solana/web3.js'
 import type { SendTransactionOptions } from '@solana/wallet-adapter-base'
-import type { SessionWalletInterface } from '@magicblock-labs/gum-react-sdk'
 
 export type MagicBlockStage = 'idle' | 'connecting' | 'creating-session' | 'ready' | 'settling' | 'error'
 
@@ -25,8 +24,6 @@ export interface MagicBlockState {
   clearCompletedSession: () => void
   clearError: () => void
 }
-
-export type SessionWalletLike = Pick<SessionWalletInterface, 'publicKey' | 'sessionToken' | 'getSessionToken' | 'createSession' | 'sendTransaction'>
 
 export const MagicBlockContext = createContext<MagicBlockState | null>(null)
 
