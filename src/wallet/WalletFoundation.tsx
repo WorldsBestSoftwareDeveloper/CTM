@@ -14,6 +14,7 @@ export function WalletFoundationProvider({ children }: { children: ReactNode }) 
   const configuredEndpoint = import.meta.env.VITE_SOLANA_RPC_URL?.trim() || defaultDevnetEndpoint
   const [endpoint, setEndpoint] = useState(configuredEndpoint)
   const [adapterError, setAdapterError] = useState<string | null>(null)
+  const switchToDevnet = useCallback(() => setEndpoint(defaultDevnetEndpoint), [])
 
   const handleError = useCallback((error: WalletError) => {
     const message = friendlyWalletError(error)
@@ -29,7 +30,7 @@ export function WalletFoundationProvider({ children }: { children: ReactNode }) 
             endpoint={endpoint}
             adapterError={adapterError}
             setAdapterError={setAdapterError}
-            switchToDevnet={() => setEndpoint(defaultDevnetEndpoint)}
+            switchToDevnet={switchToDevnet}
           >
             {children}
           </WalletStateBridge>
@@ -82,6 +83,15 @@ function WalletStateBridge({ children, endpoint, adapterError, setAdapterError, 
         detectedCluster,
         validationResult: nextStatus,
       }))
+      if (nextStatus === 'wrong-network' && connectionEndpoint !== defaultDevnetEndpoint) {
+        console.warn(`[WalletFoundation] Configured RPC is not Solana Devnet; falling back to ${defaultDevnetEndpoint}.`, {
+          rpcEndpoint: endpoint,
+          connectionEndpoint,
+          genesisHash,
+        })
+        switchToDevnet()
+        return
+      }
       setNetworkStatus(nextStatus)
     } catch (error) {
       console.warn(`[WalletFoundation] Unable to validate RPC network: ${endpoint}`, error)
@@ -95,7 +105,7 @@ function WalletStateBridge({ children, endpoint, adapterError, setAdapterError, 
       }))
       setNetworkStatus('offline')
     }
-  }, [connection, connectionEndpoint, endpoint, wallet?.adapter, walletAddress, walletName])
+  }, [connection, connectionEndpoint, endpoint, switchToDevnet, wallet?.adapter, walletAddress, walletName])
 
   useEffect(() => { void checkNetwork() }, [checkNetwork])
   useEffect(() => {
