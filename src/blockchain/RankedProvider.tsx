@@ -198,18 +198,18 @@ export function RankedProvider({ children }: { children: ReactNode }) {
     const [runAddress] = deriveRunSessionAddress(signingWallet.publicKey, runId)
     const methods = program.methods as unknown as MagicBlockProgramMethods
     const startRun = methods.startRun
-    await send(startRun(new BN(runId.toString()), session.publicKey).accountsPartial({ playerProfile: profileAddress, runSession: runAddress, authority: signingWallet.publicKey }), 'router')
+    await send(startRun(new BN(runId.toString()), session.publicKey).accountsPartial({ playerProfile: profileAddress, runSession: runAddress, authority: signingWallet.publicKey }))
 
     setTransactionStage('delegating')
     const runDelegated = await magicBlock.getDelegationStatus(runAddress).catch(() => false)
     if (!runDelegated) {
       const delegateRunSession = methods.delegateRunSession
-      await send(delegateRunSession(new BN(runId.toString())).accountsPartial({ payer: signingWallet.publicKey, pda: runAddress }).remainingAccounts([{ pubkey: magicBlock.validator, isSigner: false, isWritable: false }]), 'router')
+      await send(delegateRunSession(new BN(runId.toString())).accountsPartial({ payer: signingWallet.publicKey, pda: runAddress }).remainingAccounts([{ pubkey: magicBlock.validator, isSigner: false, isWritable: false }]))
     }
     const profileDelegated = await magicBlock.getDelegationStatus(profileAddress).catch(() => false)
     if (!profileDelegated) {
       const delegatePlayerProfile = methods.delegatePlayerProfile
-      await send(delegatePlayerProfile().accountsPartial({ payer: signingWallet.publicKey, pda: profileAddress }).remainingAccounts([{ pubkey: magicBlock.validator, isSigner: false, isWritable: false }]), 'router')
+      await send(delegatePlayerProfile().accountsPartial({ payer: signingWallet.publicKey, pda: profileAddress }).remainingAccounts([{ pubkey: magicBlock.validator, isSigner: false, isWritable: false }]))
     }
 
     setActiveRunId(runId)

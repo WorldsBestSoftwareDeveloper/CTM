@@ -71,6 +71,11 @@ Complexity: XS (under 1 hour), S (1–3 hours), M (half day), L (up to a day). A
 - [x] **T20 (frontend integration scope)** — deployed Devnet program connection, PlayerProfile initialization/fetch, RunSession start/finish, persisted run recovery, transaction progress, duplicate prevention, and on-chain profile refresh completed.
 - [ ] MagicBlock, session keys, delegation, checkpoints, leaderboards, anti-cheat, and score verification remain excluded.
 
+## Milestone 6C completion
+
+- [x] **T21 (MagicBlock/session scope)** — MagicBlock session key creation/restoration, base-chain account delegation, Ephemeral Rollup finish, commit-and-undelegate settlement, single-flight session preparation, Devnet validation script, and frontend IDL/type regeneration completed.
+- [ ] Checkpoints, leaderboards, anti-cheat, score verification, and leaderboard UI remain excluded until later approved milestones.
+
 | ID | Description | Dependencies | Complexity | Acceptance criteria |
 |---|---|---|---|---|
 | T01 | Create Vite React/TypeScript app with Tailwind, Framer Motion, strict lint/type settings, and PWA baseline | None | S | Production build succeeds and app installs with valid icons/manifest. |
@@ -93,7 +98,7 @@ Complexity: XS (under 1 hour), S (1–3 hours), M (half day), L (up to a day). A
 | T18 | Configure PWA precache/runtime cache and offline Demo smoke test | T14 | S | Installed app launches cached Demo Mode without network; Ranked is disabled offline. |
 | T19 | Add Solana Wallet Adapter desktop connection and Mobile Wallet Adapter capability path | T01,T04 | M | **Complete in Milestone 6A.** Supported desktop/mobile wallet connect/disconnect/rejection states are isolated from Demo; final wallet/device smoke testing requires the manual prerequisites listed in the handoff. |
 | T20 | Create Anchor program state and PlayerProfile/RunSession/GlobalLeaderboard instructions | T19 | L | Program tests cover profile init, session state, score ordering, and authorization. |
-| T21 | Integrate MagicBlock Magic Router, session keys, delegation, checkpoints, commit, leaderboard update, and undelegation | T20 | L | A Devnet ranked run completes the specified lifecycle with visible errors/retry. |
+| T21 | Integrate MagicBlock Magic Router, session keys, account delegation, ER result settlement, and undelegation | T20 | L | **Complete in Milestone 6C.** A Devnet ranked run creates/restores a session key, delegates required PDAs, finishes through the session signer on ER, settles/undelegates, refreshes profile state, and avoids duplicate sessions. |
 | T22 | Bind profile/global leaderboard reads to UI and prevent Demo submissions | T13,T21 | M | Ranked updates display after confirmation; Demo creates no transaction. |
 | T23 | Add automated unit/integration/e2e smoke coverage for judge flow and settings | T18,T22 | M | Tests cover offline Demo, wallet failure, Ranked happy path, Game Over navigation, and settings persistence. |
 | T24 | Run mobile performance/accessibility/recovery QA and produce deployment/runbook docs | T15,T17,T23 | M | Target-device evidence, recovery guidance, and Devnet configuration are documented. |

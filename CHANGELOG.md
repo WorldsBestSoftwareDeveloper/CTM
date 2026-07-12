@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.6.0-c — Milestone 6C: MagicBlock Ephemeral Rollups Integration
+
+### Implemented
+
+- Added MagicBlock Ephemeral Rollups dependencies and a dedicated React `MagicBlockProvider`/context for Ranked Mode session lifecycle state.
+- Added Devnet Magic Router, Ephemeral Rollup, and validator configuration with environment-variable overrides:
+  - `VITE_MAGICBLOCK_ROUTER_URL`
+  - `VITE_MAGICBLOCK_ER_URL`
+  - `VITE_MAGICBLOCK_VALIDATOR_ID`
+- Added session key creation/restoration through the installed MagicBlock GUM React SDK, including single-flight session preparation so repeated Ranked clicks do not create duplicate sessions.
+- Updated Ranked Mode to create or restore a session key before gameplay, start `RunSession` with the session authority, delegate `RunSession` and `PlayerProfile`, finish the run through the session signer on the Ephemeral Rollup, and settle by committing/undelegating.
+- Added Anchor MagicBlock instructions and regenerated frontend IDL/types:
+  - `delegate_run_session`
+  - `delegate_player_profile`
+  - `commit_ranked_session`
+  - `undelegate_ranked_session`
+- Routed `start_run` and delegation transactions through base Devnet, while using Magic Router for delegation-status reads and the Ephemeral Rollup connection for session-signed finish/settlement transactions.
+- Added `scripts/validate-magicblock.mjs` for Devnet validation of session creation, delegation, ER finish, undelegation/settlement, and profile refresh.
+
+### Devnet
+
+- Program ID: `74bg3UqJQTXJQihCw1JX7F3NWh9PUhj4UFqjE81rCpnR`.
+- MagicBlock deployment/IDL upgrade signature: `eKx4j4uRVLDusQE6bZr9CmSz4KRukxPJycGghYtQZhxUHeJqo68Cm4JqGxpgtTzPpqBvNqs5sZ18GY7d7LsxCiY`.
+- Devnet validation script signatures:
+  - session key creation: `ygfzmq5vfQa7NZB5UbbDQnuoh8uFBuSe1ZacvF6r5488GRuJ2udvMctFh6knfTAaD5tTj6g1DgNiue2g9Bj6XjY`
+  - `start_run`: `4Lhw85WyRDnbSemyjVtyffwFRxgdD9W9LtkdC4vRXPqub5KrzVb1Fox6PWCVuRBCdn2Fv4UrB1GRMW7vL65daLb3`
+  - `delegate_run_session`: `5z6x15voktx9LvTEq6yznV2r33hJqDBnKqCoVcofWBEoyngrYcVh3iJv4SaP925KABwxLb9AiYMHh1yb2Quzcvu8`
+  - `delegate_player_profile`: `3NbNuDmkLjejR9oTRMgDzaB5MKGTGTkduzjA5Eeuo1x8xBKqes7vCLY3x9WLnUAvtF5gVNR4VbHv7TYrRitTa1vW`
+  - `finish_run` through session key on ER: `2HL5gmwk8vzdD8idTMM9ZfkJaoRjucQdhviP62DmkykbuKF7K29ECfq54nm95LPNNyLjeL9pj3f5pGotEtAqGL1g`
+  - `undelegate_ranked_session`: `5fq6ju3cyUJeD5mqE77iYm3gN21P5B7639NbRaoxaLfD4mTgJwywMScyanfjJUzUZuxGcEpTcJRvYFLLjB3QRQ4t`
+
+### Validation
+
+- `anchor build` passes and regenerates the SBF program, IDL, and TypeScript bindings.
+- Deployed Devnet IDL semantically matches the frontend IDL: address and instruction set match.
+- `cargo test --workspace` passes: 1 passed, 0 failed. Anchor/Rust emits upstream `target_os="solana"` cfg warnings only.
+- `node scripts/validate-magicblock.mjs` passes on Devnet:
+  - session key creation verified
+  - `RunSession` delegation verified
+  - `PlayerProfile` delegation verified
+  - session-signed ER `finish_run` verified
+  - undelegation/settlement verified
+  - profile refresh after settlement verified
+  - Demo Mode code was not imported or executed by the validation path
+- `npm.cmd run lint` passes.
+- `npm.cmd run typecheck` passes.
+- `npm.cmd run build` passes.
+
+### Scope boundaries
+
+- Demo Mode remains offline/local and does not initialize MagicBlock.
+- No leaderboard, anti-cheat, score verification, checkpoints, NFTs, tokens, backend, gameplay, asset, audio, camera, obstacle, or UI redesign work was added.
+
 ## 0.6.0-b2 — Milestone 6B Phase 2: Ranked Anchor Client
 
 ### Implemented

@@ -14,6 +14,425 @@ export type CatchTheMagician = {
   },
   "instructions": [
     {
+      "name": "commitRankedSession",
+      "discriminator": [
+        132,
+        97,
+        57,
+        176,
+        23,
+        46,
+        111,
+        206
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "playerProfile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run_session.player",
+                "account": "runSession"
+              }
+            ]
+          }
+        },
+        {
+          "name": "runSession",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  117,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run_session.player",
+                "account": "runSession"
+              },
+              {
+                "kind": "account",
+                "path": "run_session.run_id",
+                "account": "runSession"
+              }
+            ]
+          }
+        },
+        {
+          "name": "magicProgram",
+          "address": "Magic11111111111111111111111111111111111111"
+        },
+        {
+          "name": "magicContext",
+          "writable": true,
+          "address": "MagicContext1111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "delegatePlayerProfile",
+      "discriminator": [
+        62,
+        94,
+        178,
+        63,
+        186,
+        116,
+        36,
+        143
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "signer": true
+        },
+        {
+          "name": "bufferPda",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pda"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                90,
+                18,
+                17,
+                172,
+                190,
+                199,
+                58,
+                248,
+                111,
+                184,
+                196,
+                136,
+                35,
+                76,
+                165,
+                56,
+                65,
+                231,
+                32,
+                178,
+                53,
+                166,
+                0,
+                252,
+                4,
+                134,
+                187,
+                122,
+                55,
+                54,
+                113,
+                238
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegationRecordPda",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pda"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegationProgram"
+            }
+          }
+        },
+        {
+          "name": "delegationMetadataPda",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pda"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegationProgram"
+            }
+          }
+        },
+        {
+          "name": "pda",
+          "writable": true
+        },
+        {
+          "name": "ownerProgram",
+          "address": "74bg3UqJQTXJQihCw1JX7F3NWh9PUhj4UFqjE81rCpnR"
+        },
+        {
+          "name": "delegationProgram",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "delegateRunSession",
+      "discriminator": [
+        178,
+        60,
+        32,
+        6,
+        132,
+        61,
+        237,
+        12
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "signer": true
+        },
+        {
+          "name": "bufferPda",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pda"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                90,
+                18,
+                17,
+                172,
+                190,
+                199,
+                58,
+                248,
+                111,
+                184,
+                196,
+                136,
+                35,
+                76,
+                165,
+                56,
+                65,
+                231,
+                32,
+                178,
+                53,
+                166,
+                0,
+                252,
+                4,
+                134,
+                187,
+                122,
+                55,
+                54,
+                113,
+                238
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegationRecordPda",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pda"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegationProgram"
+            }
+          }
+        },
+        {
+          "name": "delegationMetadataPda",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pda"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegationProgram"
+            }
+          }
+        },
+        {
+          "name": "pda",
+          "writable": true
+        },
+        {
+          "name": "ownerProgram",
+          "address": "74bg3UqJQTXJQihCw1JX7F3NWh9PUhj4UFqjE81rCpnR"
+        },
+        {
+          "name": "delegationProgram",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "runId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "finishRun",
       "discriminator": [
         125,
@@ -44,7 +463,8 @@ export type CatchTheMagician = {
               },
               {
                 "kind": "account",
-                "path": "authority"
+                "path": "run_session.player",
+                "account": "runSession"
               }
             ]
           },
@@ -67,7 +487,8 @@ export type CatchTheMagician = {
               },
               {
                 "kind": "account",
-                "path": "authority"
+                "path": "run_session.player",
+                "account": "runSession"
               },
               {
                 "kind": "account",
@@ -79,10 +500,7 @@ export type CatchTheMagician = {
         },
         {
           "name": "authority",
-          "signer": true,
-          "relations": [
-            "playerProfile"
-          ]
+          "signer": true
         }
       ],
       "args": [
@@ -143,6 +561,43 @@ export type CatchTheMagician = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "processUndelegation",
+      "discriminator": [
+        196,
+        28,
+        41,
+        206,
+        48,
+        37,
+        51,
+        167
+      ],
+      "accounts": [
+        {
+          "name": "baseAccount",
+          "writable": true
+        },
+        {
+          "name": "buffer"
+        },
+        {
+          "name": "payer",
+          "writable": true
+        },
+        {
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "accountSeeds",
+          "type": {
+            "vec": "bytes"
+          }
+        }
+      ]
     },
     {
       "name": "startRun",
@@ -220,8 +675,92 @@ export type CatchTheMagician = {
         {
           "name": "runId",
           "type": "u64"
+        },
+        {
+          "name": "sessionAuthority",
+          "type": "pubkey"
         }
       ]
+    },
+    {
+      "name": "undelegateRankedSession",
+      "discriminator": [
+        96,
+        236,
+        120,
+        93,
+        229,
+        240,
+        30,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "playerProfile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run_session.player",
+                "account": "runSession"
+              }
+            ]
+          }
+        },
+        {
+          "name": "runSession",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  117,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run_session.player",
+                "account": "runSession"
+              },
+              {
+                "kind": "account",
+                "path": "run_session.run_id",
+                "account": "runSession"
+              }
+            ]
+          }
+        },
+        {
+          "name": "magicProgram",
+          "address": "Magic11111111111111111111111111111111111111"
+        },
+        {
+          "name": "magicContext",
+          "writable": true,
+          "address": "MagicContext1111111111111111111111111111111"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -314,6 +853,10 @@ export type CatchTheMagician = {
           },
           {
             "name": "playerProfile",
+            "type": "pubkey"
+          },
+          {
+            "name": "sessionAuthority",
             "type": "pubkey"
           },
           {

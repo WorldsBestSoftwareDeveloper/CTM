@@ -2,7 +2,7 @@ import { useSessionKeyManager } from '@magicblock-labs/gum-react-sdk'
 import { ConnectionMagicRouter } from '@magicblock-labs/ephemeral-rollups-sdk'
 import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react'
 import { Connection, PublicKey, type Transaction } from '@solana/web3.js'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CATCH_THE_MAGICIAN_PROGRAM_ID } from './program'
 import { MagicBlockContext, type MagicBlockSession, type MagicBlockStage, type MagicBlockState } from './MagicBlockContext'
 
@@ -28,6 +28,7 @@ function ConnectedMagicBlockProvider({ children }: { children: ReactNode }) {
   const [statusText, setStatusText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<MagicBlockSession | null>(null)
+  const prepareSessionRef = useRef<Promise<MagicBlockSession> | null>(null)
 
   useEffect(() => {
     if (!anchorWallet) {
@@ -53,44 +54,52 @@ function ConnectedMagicBlockProvider({ children }: { children: ReactNode }) {
 
   const prepareSession = useCallback(async (): Promise<MagicBlockSession> => {
     if (!anchorWallet) throw new Error('Connect a wallet before creating a Ranked session.')
+    if (prepareSessionRef.current) return prepareSessionRef.current
+    if (session) return session
     setError(null)
     setStage('connecting')
     setStatusText('Connecting...')
     debugMagicBlock('session:prepare:start', { owner: anchorWallet.publicKey.toBase58() })
 
-    const existingToken = await sessionWallet.getSessionToken()
-    if (existingToken && sessionWallet.publicKey) {
-      const restored = { token: existingToken, publicKey: sessionWallet.publicKey }
-      setSession(restored)
+    const request = (async () => {
+      const existingToken = await sessionWallet.getSessionToken()
+      if (existingToken && sessionWallet.publicKey) {
+        const restored = { token: existingToken, publicKey: sessionWallet.publicKey }
+        setSession(restored)
+        setStage('ready')
+        setStatusText('Ready')
+        debugMagicBlock('session:prepare:restored', { session: restored.publicKey.toBase58() })
+        return restored
+      }
+
+      setStage('creating-session')
+      setStatusText('Creating Session...')
+      const created = await sessionWallet.createSession(
+        CATCH_THE_MAGICIAN_PROGRAM_ID,
+        sessionTopUpLamports,
+        sessionDurationMinutes,
+        ({ sessionToken, publicKey }) => debugMagicBlock('session:created-callback', { sessionToken, publicKey }),
+      )
+      const token = created?.sessionToken ?? sessionWallet.sessionToken
+      const publicKey = created?.publicKey ?? sessionWallet.publicKey
+      if (!token || !publicKey) {
+        setStage('error')
+        setStatusText(null)
+        setError('Unable to start Ranked session.')
+        throw new Error('MagicBlock session key creation did not return a usable session.')
+      }
+      const next = { token, publicKey }
+      setSession(next)
       setStage('ready')
       setStatusText('Ready')
-      debugMagicBlock('session:prepare:restored', { session: restored.publicKey.toBase58() })
-      return restored
-    }
-
-    setStage('creating-session')
-    setStatusText('Creating Session...')
-    const created = await sessionWallet.createSession(
-      CATCH_THE_MAGICIAN_PROGRAM_ID,
-      sessionTopUpLamports,
-      sessionDurationMinutes,
-      ({ sessionToken, publicKey }) => debugMagicBlock('session:created-callback', { sessionToken, publicKey }),
-    )
-    const token = created?.sessionToken ?? sessionWallet.sessionToken
-    const publicKey = created?.publicKey ?? sessionWallet.publicKey
-    if (!token || !publicKey) {
-      setStage('error')
-      setStatusText(null)
-      setError('Unable to start Ranked session.')
-      throw new Error('MagicBlock session key creation did not return a usable session.')
-    }
-    const next = { token, publicKey }
-    setSession(next)
-    setStage('ready')
-    setStatusText('Ready')
-    debugMagicBlock('session:prepare:created', { session: publicKey.toBase58() })
-    return next
-  }, [anchorWallet, sessionWallet])
+      debugMagicBlock('session:prepare:created', { session: publicKey.toBase58() })
+      return next
+    })().finally(() => {
+      prepareSessionRef.current = null
+    })
+    prepareSessionRef.current = request
+    return request
+  }, [anchorWallet, session, sessionWallet])
 
   const sendSessionTransaction = useCallback(async (transaction: Transaction, options = {}) => {
     if (!sessionWallet.sendTransaction) throw new Error('MagicBlock session wallet is not ready.')
@@ -165,5 +174,5 @@ function useBaseMagicBlockState() {
 }
 
 function debugMagicBlock(event: string, details: Record<string, unknown> = {}) {
-  console.debug(`[MagicBlock] ${event}`, details)
+  if (import.meta.env.DEV) console.debug(`[MagicBlock] ${event}`, details)
 }
